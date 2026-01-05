@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,8 +15,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // 1️⃣ Initial session check
+    let mounted = true;
+
     supabase.auth.getSession().then(({ data }) => {
+      if (!mounted) return;
+
       if (data.session) {
         router.replace("/dashboard");
       } else {
@@ -23,21 +27,20 @@ export default function LoginPage() {
       }
     });
 
-    // 2️⃣ Listen for login events (THIS WAS MISSING)
-    const { data: listener } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
+    const { data: authListener } =
+      supabase.auth.onAuthStateChange((_event, session) => {
         if (session) {
           router.replace("/dashboard");
         }
-      }
-    );
+      });
 
     return () => {
-      listener.subscription.unsubscribe();
+      mounted = false;
+      authListener.subscription.unsubscribe();
     };
   }, [router]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
@@ -51,8 +54,7 @@ export default function LoginPage() {
       setError(error.message);
       setLoading(false);
     }
-    // ❗ NO redirect here — listener handles it
-  };
+  }
 
   if (checkingSession) return null;
 

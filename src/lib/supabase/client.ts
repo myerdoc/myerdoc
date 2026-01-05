@@ -1,16 +1,7 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
+import type { Database } from "@/lib/supabase/types";
 
-export const supabase = createClient(
+export const supabase = createBrowserClient<Database>(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      persistSession: true,        // ✅ REQUIRED
-      autoRefreshToken: true,      // ✅ REQUIRED
-      detectSessionInUrl: true,    // ✅ REQUIRED
-      storage: typeof window !== "undefined"
-        ? window.localStorage
-        : undefined,
-    },
-  }
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );

@@ -41,13 +41,14 @@ export default function RegisterPage() {
   }
 
   // 3. Create membership row
-  const { error: membershipError } = await supabase
-    .from("memberships")
-    .insert({
-      user_id: session.user.id,
-      plan_type: "individual",
-      status: "approved",
-    });
+    const { error: membershipError } = await supabase
+      .from("memberships")
+      .insert({
+        user_id: session.user.id,
+        plan_type: "individual",
+        status: "approved",
+        onboarding_step: "baseline", // ✅ Add this
+      });
 
   if (membershipError) {
     console.error("membershipError:", membershipError);

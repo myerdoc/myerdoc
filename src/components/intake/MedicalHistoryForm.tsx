@@ -19,16 +19,27 @@ const CONDITION_OPTIONS = [
   'None',
 ];
 
-const ALLERGY_OPTIONS = ['None', 'Penicillin', 'Sulfa', 'NSAIDs', 'Opioids', 'Other'];
+const ALLERGY_OPTIONS = [
+  'None',
+  'Penicillin',
+  'Sulfa',
+  'NSAIDs',
+  'Opioids',
+  'Other',
+];
 
 export default function MedicalHistoryForm({ membershipId }: Props) {
   const router = useRouter();
 
-  // ===== State =====
+  /* ======================
+     State
+  ====================== */
+
   const [sexAtBirth, setSexAtBirth] = useState('');
   const [conditions, setConditions] = useState<string[]>([]);
   const [otherCondition, setOtherCondition] = useState('');
   const [medications, setMedications] = useState('');
+  const [surgeries, setSurgeries] = useState('');
   const [allergies, setAllergies] = useState<string[]>([]);
   const [pregnancyStatus, setPregnancyStatus] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
@@ -36,8 +47,11 @@ export default function MedicalHistoryForm({ membershipId }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // ===== Helpers =====
-  function toggle(
+  /* ======================
+     Helpers
+  ====================== */
+
+  function toggleOption(
     value: string,
     list: string[],
     setList: (v: string[]) => void
@@ -54,23 +68,17 @@ export default function MedicalHistoryForm({ membershipId }: Props) {
     );
   }
 
-  async function getSelfPersonId(): Promise<string | null> {
-    const { data, error } = await supabase
-      .from('people')
-      .select('id')
-      .eq('membership_id', membershipId)
-      .eq('relationship', 'self')
-      .maybeSingle();
-
-    if (error) {
-      console.error('SELF PERSON LOOKUP ERROR:', error);
-      return null;
-    }
-
-    return data?.id ?? null;
+  function splitCommaList(input: string): string[] {
+    return input
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean);
   }
 
-  // ===== Submit =====
+  /* ======================
+     Submit
+  ====================== */
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting) return;
@@ -89,64 +97,113 @@ export default function MedicalHistoryForm({ membershipId }: Props) {
 
     setSubmitting(true);
 
-    // 1️⃣ Insert medical history
-    const { error: insertError } = await supabase
-      .from('medical_histories')
-      .insert({
-        membership_id: membershipId,
-        conditions,
-        other_condition: otherCondition || null,
-        medications: medications || null,
-        allergies,
-        pregnancy_status: pregnancyStatus || null,
-        acknowledged,
-      });
+    try {
+      /* 1️⃣ Resolve self person */
+      const { data: person, error: personError } = await supabase
+        .from('people')
+        .select('id')
+        .eq('membership_id', membershipId)
+        .eq('relationship', 'self')
+        .single();
 
-    if (insertError) {
-      console.error('MEDICAL HISTORY ERROR:', insertError);
+      if (personError || !person) {
+        throw new Error('Could not locate your profile.');
+      }
+
+      const personId = person.id;
+
+      /* 2️⃣ Clear existing medical data */
+      await Promise.all([
+        supabase.from('medical_conditions').delete().eq('person_id', personId),
+        supabase.from('allergies').delete().eq('person_id', personId),
+        supabase.from('medications').delete().eq('person_id', personId),
+        supabase.from('surgical_history').delete().eq('person_id', personId),
+      ]);
+
+      /* 3️⃣ Conditions */
+      const normalizedConditions = [
+        ...conditions.filter(c => c !== 'None'),
+        ...(otherCondition.trim() ? [otherCondition.trim()] : []),
+      ];
+
+      if (normalizedConditions.length > 0) {
+        await supabase.from('medical_conditions').insert(
+          normalizedConditions.map(label => ({
+            person_id: personId,
+            condition_label: label,
+            condition_code: label.toLowerCase().replace(/\s+/g, '_'),
+            source: 'intake',
+          }))
+        );
+      }
+
+      /* 4️⃣ Allergies */
+      const normalizedAllergies = allergies.filter(a => a !== 'None');
+
+      if (normalizedAllergies.length > 0) {
+        await supabase.from('allergies').insert(
+          normalizedAllergies.map(allergen => ({
+            person_id: personId,
+            allergen,
+            source: 'intake',
+          }))
+        );
+      }
+
+      /* 5️⃣ Medications */
+      const meds = splitCommaList(medications);
+
+      if (meds.length > 0) {
+        await supabase.from('medications').insert(
+          meds.map(name => ({
+            person_id: personId,
+            medication_name: name,
+            source: 'intake',
+          }))
+        );
+      }
+
+      /* 6️⃣ Surgical history */
+      const procedures = splitCommaList(surgeries);
+
+      if (procedures.length > 0) {
+        await supabase.from('surgical_history').insert(
+          procedures.map(proc => ({
+            person_id: personId,
+            procedure: proc,
+            source: 'intake',
+          }))
+        );
+      }
+
+      /* 7️⃣ Update person demographics */
+      await supabase
+        .from('people')
+        .update({
+          sex_at_birth: sexAtBirth,
+        })
+        .eq('id', personId);
+
+      /* 8️⃣ Advance onboarding */
+      await supabase
+        .from('memberships')
+        .update({ onboarding_step: 'medical_history_complete' })
+        .eq('id', membershipId);
+
+      router.replace(
+        `/membership/intake/vitals-kit?membershipId=${membershipId}`
+      );
+    } catch (err) {
+      console.error(err);
       setError('Failed to save medical history.');
       setSubmitting(false);
-      return;
     }
-
-    // 2️⃣ Update sex_at_birth on self person
-    const personId = await getSelfPersonId();
-
-    if (!personId) {
-      setError('Saved medical history, but could not locate your profile.');
-      setSubmitting(false);
-      return;
-    }
-
-    const { error: sexUpdateError } = await supabase
-      .from('people')
-      .update({ sex_at_birth: sexAtBirth })
-      .eq('id', personId);
-
-    if (sexUpdateError) {
-      console.error('SEX UPDATE ERROR:', sexUpdateError);
-      setError('Saved medical history, but failed to save sex at birth.');
-      setSubmitting(false);
-      return;
-    }
-
-    // 3️⃣ Advance onboarding step
-    const { error: stepError } = await supabase
-      .from('memberships')
-      .update({ onboarding_step: 'medical_history_complete' })
-      .eq('id', membershipId);
-
-    if (stepError) {
-      console.error('ONBOARDING STEP UPDATE ERROR:', stepError);
-      setError('Saved, but failed to update onboarding step.');
-      setSubmitting(false);
-      return;
-    }
-
-    router.push(`/membership/intake/vitals-kit?membershipId=${membershipId}`);
   }
 
-  // ===== Render =====
+  /* ======================
+     Render
+  ====================== */
+
   return (
     <div className="bg-slate-50 py-12">
       <div className="mx-auto max-w-2xl px-6">
@@ -196,12 +253,13 @@ export default function MedicalHistoryForm({ membershipId }: Props) {
                   <input
                     type="checkbox"
                     checked={conditions.includes(option)}
-                    onChange={() => toggle(option, conditions, setConditions)}
+                    onChange={() =>
+                      toggleOption(option, conditions, setConditions)
+                    }
                   />
                   {option}
                 </label>
               ))}
-
               <input
                 type="text"
                 value={otherCondition}
@@ -221,6 +279,21 @@ export default function MedicalHistoryForm({ membershipId }: Props) {
                 onChange={e => setMedications(e.target.value)}
                 rows={3}
                 className="w-full rounded-md border px-3 py-2"
+                placeholder="Example: Lisinopril 10mg, Metformin 500mg"
+              />
+            </div>
+
+            {/* Surgical history */}
+            <div>
+              <label className="block text-sm font-medium text-slate-900">
+                Surgical history (optional)
+              </label>
+              <textarea
+                value={surgeries}
+                onChange={e => setSurgeries(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border px-3 py-2"
+                placeholder="Example: Appendectomy (2005), Knee arthroscopy (2018)"
               />
             </div>
 
@@ -234,7 +307,9 @@ export default function MedicalHistoryForm({ membershipId }: Props) {
                   <input
                     type="checkbox"
                     checked={allergies.includes(option)}
-                    onChange={() => toggle(option, allergies, setAllergies)}
+                    onChange={() =>
+                      toggleOption(option, allergies, setAllergies)
+                    }
                   />
                   {option}
                 </label>

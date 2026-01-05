@@ -1,3 +1,4 @@
+// src/middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
@@ -11,7 +12,7 @@ export async function middleware(req: NextRequest) {
     {
       cookies: {
         get(name: string) {
-          return req.cookies.get(name)?.value ?? null;
+          return req.cookies.get(name)?.value;
         },
         set(name: string, value: string, options) {
           res.cookies.set({ name, value, ...options });

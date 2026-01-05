@@ -1,5 +1,5 @@
 import Link from "next/link";
-import MobilePricingFooter from "../components/MobilePricingFooter";
+import MobilePricingFooter from "@/app/components/MobilePricingFooter";
 
 export default function PricingPage() {
   return (

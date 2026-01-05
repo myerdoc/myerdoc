@@ -1,0 +1,247 @@
+'use client';
+
+import { useState } from 'react';
+import { supabase } from '@/lib/supabase/client';
+import { formatPhone } from '@/lib/format/phone';
+
+type Contact = {
+  id: string;
+  name: string;
+  relationship: string;
+  phone: string;
+};
+
+export default function EditEmergencyContacts({ 
+  membershipId, 
+  contacts: initialContacts 
+}: { 
+  membershipId: string; 
+  contacts: Contact[];
+}) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  
+  const [contacts, setContacts] = useState<Array<Partial<Contact>>>(
+    initialContacts.length > 0
+      ? initialContacts
+      : [{ name: '', relationship: '', phone: '' }]
+  );
+
+  function formatPhoneInput(value: string) {
+    const digits = value.replace(/\D/g, '').slice(0, 10);
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 6) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+  }
+
+  function updateContact(index: number, field: keyof Contact, value: string) {
+    setContacts(prev =>
+      prev.map((c, i) => (i === index ? { ...c, [field]: value } : c))
+    );
+  }
+
+  function addContact() {
+    if (contacts.length < 2) {
+      setContacts([...contacts, { name: '', relationship: '', phone: '' }]);
+    }
+  }
+
+  function removeContact(index: number) {
+    if (contacts.length > 1) {
+      setContacts(contacts.filter((_, i) => i !== index));
+    }
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    setError(null);
+
+    // Validate first contact
+    const primary = contacts[0];
+    if (!primary?.name || !primary?.relationship || !primary?.phone) {
+      setError('Primary emergency contact is required');
+      setSaving(false);
+      return;
+    }
+
+    // Delete existing contacts
+    const { error: deleteError } = await supabase
+      .from('emergency_contacts')
+      .delete()
+      .eq('membership_id', membershipId);
+
+    if (deleteError) {
+      setError('Failed to update contacts');
+      setSaving(false);
+      return;
+    }
+
+    // Insert new contacts
+    for (const contact of contacts) {
+      if (!contact.name && !contact.relationship && !contact.phone) continue;
+
+      const { error: insertError } = await supabase
+        .from('emergency_contacts')
+        .insert({
+          membership_id: membershipId,
+          name: contact.name!.trim(),
+          relationship: contact.relationship!.trim(),
+          phone: contact.phone!.trim(),
+        });
+
+      if (insertError) {
+        setError('Failed to save contact');
+        setSaving(false);
+        return;
+      }
+    }
+
+    setSaving(false);
+    setIsEditing(false);
+    window.location.reload();
+  }
+
+  function handleCancel() {
+    setContacts(
+      initialContacts.length > 0
+        ? initialContacts
+        : [{ name: '', relationship: '', phone: '' }]
+    );
+    setIsEditing(false);
+    setError(null);
+  }
+
+  return (
+    <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold text-slate-900">Emergency Contacts</h2>
+        {!isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="text-sm font-medium text-blue-600 hover:text-blue-700 underline transition cursor-pointer"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <p className="mt-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">
+          {error}
+        </p>
+      )}
+
+      {!isEditing ? (
+        initialContacts.length === 0 ? (
+          <p className="text-sm text-slate-500 mt-4">
+            No emergency contacts on file.
+          </p>
+        ) : (
+          <div className="space-y-4 mt-4">
+            {initialContacts.map((c, index) => (
+              <div key={c.id} className="text-sm space-y-2">
+                <div className="flex gap-2">
+                  <span className="font-medium text-slate-700 w-28 shrink-0">Name:</span>
+                  <span className="text-slate-900">{c.name}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium text-slate-700 w-28 shrink-0">Relationship:</span>
+                  <span className="text-slate-900">{c.relationship || '—'}</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="font-medium text-slate-700 w-28 shrink-0">Phone:</span>
+                  <span className="text-slate-900">{formatPhone(c.phone)}</span>
+                </div>
+                {index < initialContacts.length - 1 && (
+                  <div className="border-t border-slate-200 pt-4 mt-4"></div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
+        <div className="max-w-md mt-4 space-y-6">
+          {contacts.map((contact, index) => (
+            <div key={index} className="space-y-4 border rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-700">
+                  {index === 0 ? 'Primary contact' : 'Secondary contact'}
+                </h3>
+                {index > 0 && (
+                  <button
+                    onClick={() => removeContact(index)}
+                    className="text-sm text-red-600 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900">Full name</label>
+                <input
+                  value={contact.name || ''}
+                  onChange={(e) => updateContact(index, 'name', e.target.value)}
+                  className="mt-1 w-full rounded-md border px-3 py-2"
+                  required={index === 0}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900">Relationship</label>
+                <input
+                  value={contact.relationship || ''}
+                  onChange={(e) => updateContact(index, 'relationship', e.target.value)}
+                  placeholder="Spouse, parent, child, sibling, friend"
+                  className="mt-1 w-full rounded-md border px-3 py-2"
+                  required={index === 0}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-900">Phone number</label>
+                <input
+                  value={contact.phone || ''}
+                  onChange={(e) =>
+                    updateContact(index, 'phone', formatPhoneInput(e.target.value))
+                  }
+                  placeholder="(555) 555-5555"
+                  inputMode="tel"
+                  className="mt-1 w-full rounded-md border px-3 py-2"
+                  required={index === 0}
+                />
+              </div>
+            </div>
+          ))}
+
+          {contacts.length < 2 && (
+            <button
+              onClick={addContact}
+              className="text-sm font-medium text-slate-700 underline"
+            >
+              + Add another emergency contact
+            </button>
+          )}
+
+          <div className="flex gap-3 pt-4">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-800 disabled:opacity-50"
+            >
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+            <button
+              onClick={handleCancel}
+              disabled={saving}
+              className="rounded-md border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}

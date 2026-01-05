@@ -149,9 +149,9 @@ export default function BaselineIntakeForm({ membershipId }: Props) {
     }
 
     // 4) Advance onboarding step
-    const { error: stepError } = await supabase
+      const { error: stepError } = await supabase
       .from('memberships')
-      .update({ onboarding_step: 'baseline_intake_complete' })
+      .update({ onboarding_step: 'baseline_complete' })
       .eq('id', membershipId);
 
     if (stepError) {
