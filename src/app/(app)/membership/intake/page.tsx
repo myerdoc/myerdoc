@@ -82,12 +82,14 @@ export default async function DashboardPage() {
     ? await getMedicalSnapshot(person.id)
     : null;
 
-  /* ---------- Emergency Contacts ---------- */
-  const { data: contacts } = await supabase
-    .from('emergency_contacts')
-    .select('id, name, relationship, phone')
-    .eq('membership_id', membership.id)
-    .order('created_at', { ascending: false });
+  /* ---------- Emergency Contacts (per person) ---------- */
+  const { data: contacts } = person
+    ? await supabase
+        .from('emergency_contacts')
+        .select('id, name, relationship, phone')
+        .eq('person_id', person.id)
+        .order('created_at', { ascending: false })
+    : { data: [] };
 
   /* =========================
      Render
@@ -132,10 +134,13 @@ export default async function DashboardPage() {
         <EditMedicalInfo person={person} medical={medical} membershipId={membership.id} />
 
         {/* Emergency contacts - EDITABLE */}
-        <EditEmergencyContacts 
-          membershipId={membership.id} 
-          contacts={contacts || []} 
-        />
+        {person && (
+          <EditEmergencyContacts 
+            membershipId={membership.id}
+            personId={person.id}
+            contacts={contacts || []} 
+          />
+        )}
       </div>
     </div>
   );
