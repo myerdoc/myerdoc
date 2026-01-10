@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { formatPhone } from '@/lib/format/phone';
 
 type Contact = {
   id: string;
@@ -11,24 +10,61 @@ type Contact = {
   phone: string;
 };
 
-export default function EditEmergencyContacts({ 
+export default function EditFamilyMemberEmergencyContacts({ 
   membershipId,
   personId,
-  contacts: initialContacts 
+  personName
 }: { 
   membershipId: string;
   personId: string;
-  contacts: Contact[];
+  personName: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  const [contacts, setContacts] = useState<Array<Partial<Contact>>>(
-    initialContacts.length > 0
-      ? initialContacts
-      : [{ name: '', relationship: '', phone: '' }]
-  );
+  const [loading, setLoading] = useState(true);
+  const [initialContacts, setInitialContacts] = useState<Contact[]>([]);
+  const [contacts, setContacts] = useState<Array<Partial<Contact>>>([
+    { name: '', relationship: '', phone: '' }
+  ]);
+
+  useEffect(() => {
+    loadContacts();
+  }, [personId]);
+
+  async function loadContacts() {
+    setLoading(true);
+    const supabase = createClient();
+    
+    console.log('=== DEBUG: Loading emergency contacts ===');
+    console.log('Person ID:', personId);
+    
+    const { data, error: loadError } = await supabase
+      .from('emergency_contacts')
+      .select('*')
+      .eq('person_id', personId)
+      .order('created_at', { ascending: false });
+
+    if (loadError) {
+      console.error('Error loading contacts:', loadError);
+    } else {
+      console.log('Loaded contacts:', data);
+    }
+
+    if (data && data.length > 0) {
+      setInitialContacts(data);
+      setContacts(data);
+    }
+    setLoading(false);
+  }
+
+  function formatPhone(phone: string) {
+    const digits = phone.replace(/\D/g, '');
+    if (digits.length === 10) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+    }
+    return phone;
+  }
 
   function formatPhoneInput(value: string) {
     const digits = value.replace(/\D/g, '').slice(0, 10);
@@ -105,7 +141,7 @@ export default function EditEmergencyContacts({
       };
       
       console.log('Inserting contact:', insertData);
-
+      
       const { error: insertError } = await supabase
         .from('emergency_contacts')
         .insert(insertData);
@@ -120,9 +156,11 @@ export default function EditEmergencyContacts({
     }
 
     console.log('=== All contacts saved successfully ===');
+    
+    // Reload contacts
+    await loadContacts();
     setSaving(false);
     setIsEditing(false);
-    window.location.reload();
   }
 
   function handleCancel() {
@@ -135,10 +173,19 @@ export default function EditEmergencyContacts({
     setError(null);
   }
 
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Emergency contacts</h2>
+        <p className="text-sm text-slate-500">Loading...</p>
+      </section>
+    );
+  }
+
   return (
     <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-slate-900">Emergency Contacts</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Emergency contacts</h2>
         {!isEditing && (
           <button
             onClick={() => setIsEditing(true)}
@@ -148,6 +195,12 @@ export default function EditEmergencyContacts({
           </button>
         )}
       </div>
+
+      {initialContacts.length > 0 && !isEditing && (
+        <p className="text-xs text-slate-500 mt-1">
+          Emergency contacts for {personName}
+        </p>
+      )}
 
       {error && (
         <p className="mt-4 rounded-md bg-red-50 px-4 py-2 text-sm text-red-700">

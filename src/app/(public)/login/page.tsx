@@ -3,10 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabase = createClient();
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState("");
@@ -15,37 +16,57 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    let mounted = true;
+    checkExistingSession();
 
-    supabase.auth.getSession().then(({ data }) => {
-      if (!mounted) return;
-
-      if (data.session) {
-        router.replace("/dashboard");
-      } else {
-        setCheckingSession(false);
-      }
-    });
-
-    const { data: authListener } =
-      supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
         if (session) {
-          router.replace("/dashboard");
+          const role = await getUserRole(session.user.id);
+          redirectByRole(role);
         }
-      });
+      }
+    );
 
     return () => {
-      mounted = false;
       authListener.subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
+
+  async function checkExistingSession() {
+    const { data } = await supabase.auth.getSession();
+
+    if (data.session) {
+      const role = await getUserRole(data.session.user.id);
+      redirectByRole(role);
+    } else {
+      setCheckingSession(false);
+    }
+  }
+
+  async function getUserRole(userId: string): Promise<string> {
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .single();
+
+    return data?.role || "patient";
+  }
+
+  function redirectByRole(role: string) {
+    if (role === "clinician" || role === "admin") {
+      router.replace("/clinician/dashboard"); // ✅ CORRECT
+    } else {
+      router.replace("/dashboard");
+    }
+  }
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -53,10 +74,22 @@ export default function LoginPage() {
     if (error) {
       setError(error.message);
       setLoading(false);
+      return;
+    }
+
+    if (data.session) {
+      const role = await getUserRole(data.session.user.id);
+      redirectByRole(role);
     }
   }
 
-  if (checkingSession) return null;
+  if (checkingSession) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-white px-6">
@@ -96,7 +129,7 @@ export default function LoginPage() {
         </button>
 
         <p className="mt-6 text-center text-sm text-slate-600">
-          Don’t have an active MyERDoc membership?
+          Don't have an active MyERDoc membership?
           <br />
           <Link
             href="/request"

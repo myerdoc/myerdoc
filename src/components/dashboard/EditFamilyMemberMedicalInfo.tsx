@@ -1,74 +1,94 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase/client';
 
 type Person = {
   id: string;
   first_name: string;
   last_name: string;
-  preferred_name: string | null;
-  date_of_birth: string;
-  phone: string | null;
   sex_at_birth: string | null;
-  address_line1: string | null;
-  address_line2: string | null;
-  city: string | null;
-  state: string | null;
-  postal_code: string | null;
-} | null;
+};
 
 type Medical = {
   conditions: Array<{ id: string; condition_label: string; active: boolean }>;
   allergies: Array<{ id: string; allergen: string; reaction: string | null; severity: string | null; active: boolean }>;
   medications: Array<{ id: string; medication_name: string; dose: string | null; frequency: string | null; route: string | null; active: boolean }>;
   surgeries: Array<{ id: string; procedure: string; approximate_date: string | null; notes: string | null }>;
-} | null;
+};
 
-export default function EditMedicalInfo({ 
+export default function EditFamilyMemberMedicalInfo({ 
   person, 
-  medical, 
   membershipId 
 }: { 
   person: Person; 
-  medical: Medical; 
   membershipId: string;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [medical, setMedical] = useState<Medical | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Form state
-  const [sexAtBirth, setSexAtBirth] = useState(person?.sex_at_birth || '');
-  const [conditions, setConditions] = useState(
-    medical?.conditions.map(c => c.condition_label).join(', ') || ''
-  );
-  const [allergies, setAllergies] = useState(
-    medical?.allergies.map(a => a.allergen).join(', ') || ''
-  );
-  const [medications, setMedications] = useState(
-    medical?.medications.map(m => 
-      `${m.medication_name}${m.dose ? ` ${m.dose}` : ''}${m.frequency ? ` ${m.frequency}` : ''}`
-    ).join(', ') || ''
-  );
-  const [surgeries, setSurgeries] = useState(
-    medical?.surgeries.map(s => 
-      `${s.procedure}${s.approximate_date ? ` (${s.approximate_date})` : ''}`
-    ).join(', ') || ''
-  );
+  const [sexAtBirth, setSexAtBirth] = useState(person.sex_at_birth || '');
+  const [conditions, setConditions] = useState('');
+  const [allergies, setAllergies] = useState('');
+  const [medications, setMedications] = useState('');
+  const [surgeries, setSurgeries] = useState('');
+
+  useEffect(() => {
+    loadMedicalData();
+  }, [person.id]);
+
+  async function loadMedicalData() {
+    setLoading(true);
+    
+    const [conditionsRes, allergiesRes, medicationsRes, surgeriesRes] = await Promise.all([
+      supabase.from('medical_conditions').select('*').eq('person_id', person.id).eq('active', true),
+      supabase.from('allergies').select('*').eq('person_id', person.id).eq('active', true),
+      supabase.from('medications').select('*').eq('person_id', person.id).eq('active', true),
+      supabase.from('surgical_history').select('*').eq('person_id', person.id),
+    ]);
+
+    const medicalData = {
+      conditions: conditionsRes.data || [],
+      allergies: allergiesRes.data || [],
+      medications: medicationsRes.data || [],
+      surgeries: surgeriesRes.data || [],
+    };
+
+    setMedical(medicalData);
+    
+    // Set form state
+    setSexAtBirth(person.sex_at_birth || '');
+    setConditions(medicalData.conditions.map(c => c.condition_label).join(', '));
+    setAllergies(medicalData.allergies.map(a => a.allergen).join(', '));
+    setMedications(
+      medicalData.medications.map(m => 
+        `${m.medication_name}${m.dose ? ` ${m.dose}` : ''}${m.frequency ? ` ${m.frequency}` : ''}`
+      ).join(', ')
+    );
+    setSurgeries(
+      medicalData.surgeries.map(s => 
+        `${s.procedure}${s.approximate_date ? ` (${s.approximate_date})` : ''}`
+      ).join(', ')
+    );
+    
+    setLoading(false);
+  }
 
   async function handleSave() {
-    if (!person) return;
-    
     setSaving(true);
     setError(null);
 
     try {
       // DEBUG: Check auth status
       const { data: { user }, error: authError } = await supabase.auth.getUser();
-      console.log('=== DEBUG: Save Medical Info ===');
+      console.log('=== DEBUG: Save Family Member Medical Info ===');
       console.log('Current user:', user?.id);
       console.log('Person ID:', person.id);
+      console.log('Membership ID:', membershipId);
       
       if (authError || !user) {
         throw new Error('You must be logged in to save changes');
@@ -78,7 +98,7 @@ export default function EditMedicalInfo({
       console.log('Updating person record...');
       const { error: personError } = await supabase
         .from('people')
-        .update({ sex_at_birth: sexAtBirth || null })
+        .update({ sex_at_birth: sexAtBirth })
         .eq('id', person.id);
 
       if (personError) {
@@ -240,9 +260,11 @@ export default function EditMedicalInfo({
       }
 
       console.log('=== All saves completed successfully ===');
+      
+      // Reload medical data instead of full page reload
+      await loadMedicalData();
       setSaving(false);
       setIsEditing(false);
-      window.location.reload();
 
     } catch (err) {
       console.error('=== SAVE ERROR ===', err);
@@ -252,24 +274,35 @@ export default function EditMedicalInfo({
   }
 
   function handleCancel() {
-    setSexAtBirth(person?.sex_at_birth || '');
-    setConditions(medical?.conditions.map(c => c.condition_label).join(', ') || '');
-    setAllergies(medical?.allergies.map(a => a.allergen).join(', ') || '');
-    setMedications(
-      medical?.medications.map(m => 
-        `${m.medication_name}${m.dose ? ` ${m.dose}` : ''}${m.frequency ? ` ${m.frequency}` : ''}`
-      ).join(', ') || ''
-    );
-    setSurgeries(
-      medical?.surgeries.map(s => 
-        `${s.procedure}${s.approximate_date ? ` (${s.approximate_date})` : ''}`
-      ).join(', ') || ''
-    );
+    if (medical) {
+      setSexAtBirth(person.sex_at_birth || '');
+      setConditions(medical.conditions.map(c => c.condition_label).join(', '));
+      setAllergies(medical.allergies.map(a => a.allergen).join(', '));
+      setMedications(
+        medical.medications.map(m => 
+          `${m.medication_name}${m.dose ? ` ${m.dose}` : ''}${m.frequency ? ` ${m.frequency}` : ''}`
+        ).join(', ')
+      );
+      setSurgeries(
+        medical.surgeries.map(s => 
+          `${s.procedure}${s.approximate_date ? ` (${s.approximate_date})` : ''}`
+        ).join(', ')
+      );
+    }
     setIsEditing(false);
     setError(null);
   }
 
-  if (!person || !medical) {
+  if (loading) {
+    return (
+      <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-slate-900 mb-4">Medical snapshot</h2>
+        <p className="text-sm text-slate-500">Loading...</p>
+      </section>
+    );
+  }
+
+  if (!medical) {
     return (
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900 mb-4">Medical snapshot</h2>

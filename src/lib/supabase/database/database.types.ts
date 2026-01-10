@@ -55,6 +55,120 @@ export type Database = {
           },
         ]
       }
+      consultation_requests: {
+        Row: {
+          assigned_physician_id: string | null
+          available_in: string | null
+          callback_phone: string | null
+          chief_complaint: string
+          completed_at: string | null
+          consultation_goals: string[] | null
+          created_at: string | null
+          emergency_acknowledgement: boolean | null
+          id: string
+          membership_id: string
+          patient_age: number | null
+          patient_location_state: string | null
+          person_id: string
+          physician_notes: string | null
+          preferred_contact_method: string | null
+          recent_changes: string[] | null
+          recent_changes_notes: string | null
+          red_flag_triggered: boolean | null
+          red_flags_general: string[] | null
+          red_flags_mental_health: string[] | null
+          red_flags_pediatric: string[] | null
+          started_at: string | null
+          status: string | null
+          symptom_category: string | null
+          symptom_duration: string | null
+          symptom_onset: string | null
+          symptom_severity: string | null
+          symptoms: string | null
+          updated_at: string | null
+          urgency_level: string | null
+        }
+        Insert: {
+          assigned_physician_id?: string | null
+          available_in?: string | null
+          callback_phone?: string | null
+          chief_complaint: string
+          completed_at?: string | null
+          consultation_goals?: string[] | null
+          created_at?: string | null
+          emergency_acknowledgement?: boolean | null
+          id?: string
+          membership_id: string
+          patient_age?: number | null
+          patient_location_state?: string | null
+          person_id: string
+          physician_notes?: string | null
+          preferred_contact_method?: string | null
+          recent_changes?: string[] | null
+          recent_changes_notes?: string | null
+          red_flag_triggered?: boolean | null
+          red_flags_general?: string[] | null
+          red_flags_mental_health?: string[] | null
+          red_flags_pediatric?: string[] | null
+          started_at?: string | null
+          status?: string | null
+          symptom_category?: string | null
+          symptom_duration?: string | null
+          symptom_onset?: string | null
+          symptom_severity?: string | null
+          symptoms?: string | null
+          updated_at?: string | null
+          urgency_level?: string | null
+        }
+        Update: {
+          assigned_physician_id?: string | null
+          available_in?: string | null
+          callback_phone?: string | null
+          chief_complaint?: string
+          completed_at?: string | null
+          consultation_goals?: string[] | null
+          created_at?: string | null
+          emergency_acknowledgement?: boolean | null
+          id?: string
+          membership_id?: string
+          patient_age?: number | null
+          patient_location_state?: string | null
+          person_id?: string
+          physician_notes?: string | null
+          preferred_contact_method?: string | null
+          recent_changes?: string[] | null
+          recent_changes_notes?: string | null
+          red_flag_triggered?: boolean | null
+          red_flags_general?: string[] | null
+          red_flags_mental_health?: string[] | null
+          red_flags_pediatric?: string[] | null
+          started_at?: string | null
+          status?: string | null
+          symptom_category?: string | null
+          symptom_duration?: string | null
+          symptom_onset?: string | null
+          symptom_severity?: string | null
+          symptoms?: string | null
+          updated_at?: string | null
+          urgency_level?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "consultation_requests_membership_id_fkey"
+            columns: ["membership_id"]
+            isOneToOne: false
+            referencedRelation: "memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "consultation_requests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       emergency_contacts: {
         Row: {
           created_at: string | null
@@ -312,12 +426,14 @@ export type Database = {
           date_of_birth: string
           first_name: string
           id: string
+          intake_complete: boolean | null
           last_name: string
           membership_id: string
           middle_name: string | null
           phone: string | null
           postal_code: string | null
           preferred_name: string | null
+          pregnancy_status: string | null
           relationship: string
           sex_at_birth: string | null
           state: string | null
@@ -330,12 +446,14 @@ export type Database = {
           date_of_birth: string
           first_name: string
           id?: string
+          intake_complete?: boolean | null
           last_name: string
           membership_id: string
           middle_name?: string | null
           phone?: string | null
           postal_code?: string | null
           preferred_name?: string | null
+          pregnancy_status?: string | null
           relationship?: string
           sex_at_birth?: string | null
           state?: string | null
@@ -348,12 +466,14 @@ export type Database = {
           date_of_birth?: string
           first_name?: string
           id?: string
+          intake_complete?: boolean | null
           last_name?: string
           membership_id?: string
           middle_name?: string | null
           phone?: string | null
           postal_code?: string | null
           preferred_name?: string | null
+          pregnancy_status?: string | null
           relationship?: string
           sex_at_birth?: string | null
           state?: string | null

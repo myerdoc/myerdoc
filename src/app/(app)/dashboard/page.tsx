@@ -1,20 +1,13 @@
 import { redirect } from 'next/navigation';
 import { createServerSupabaseClient } from "@/lib/supabase/server";
 import { getMedicalSnapshot } from '@/server/medical/getMedicalSnapshot';
-import { formatPhone } from '@/lib/format/phone';
-import EditPersonalInfo from '@/components/dashboard/EditPersonalInfo';
-import EditMedicalInfo from '@/components/dashboard/EditMedicalInfo';
-import EditEmergencyContacts from '@/components/dashboard/EditEmergencyContacts';
+import RequestConsultationButton from '@/components/dashboard/RequestConsultationButton';
+import FamilyMembersList from '@/components/dashboard/FamilyMembersList';
+import ConsultationHistory from '@/components/dashboard/ConsultationHistory';
 
 /* =========================
    Helpers
 ========================= */
-
-function formatDob(date: string) {
-  const [y, m, d] = date.split('-');
-  if (!y || !m || !d) return date;
-  return `${m.padStart(2, '0')}/${d.padStart(2, '0')}/${y}`;
-}
 
 function vitalsKitLabel(status: string | null) {
   if (!status) return 'Not specified';
@@ -77,17 +70,94 @@ export default async function DashboardPage() {
     .eq('relationship', 'self')
     .maybeSingle();
 
-  /* ---------- Medical Snapshot (CANONICAL) ---------- */
-  const medical = person
-    ? await getMedicalSnapshot(person.id)
-    : null;
-
-  /* ---------- Emergency Contacts ---------- */
-  const { data: contacts } = await supabase
-    .from('emergency_contacts')
-    .select('id, name, relationship, phone')
+  /* ---------- All Family Members ---------- */
+  const { data: familyMembers } = await supabase
+    .from('people')
+    .select(`
+      id,
+      first_name,
+      last_name,
+      preferred_name,
+      date_of_birth,
+      relationship,
+      phone,
+      sex_at_birth,
+      address_line1,
+      address_line2,
+      city,
+      state,
+      postal_code,
+      intake_complete
+    `)
     .eq('membership_id', membership.id)
-    .order('created_at', { ascending: false });
+    .order('relationship', { ascending: true });
+
+  /* ---------- Active Consultation (if any) ---------- */
+  const { data: activeConsultation, error: consultationError } = await supabase
+    .from('consultation_requests')
+    .select('id, status, created_at, chief_complaint')
+    .eq('membership_id', membership.id)
+    .in('status', ['pending', 'in_progress'])
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  // Handle query errors by treating as no active consultation
+  const safeActiveConsultation = consultationError ? null : activeConsultation;
+
+  /* ---------- Consultation History ---------- */
+  const { data: consultationHistory } = await supabase
+    .from('consultation_requests')
+    .select(`
+      id,
+      created_at,
+      completed_at,
+      status,
+      chief_complaint,
+      person_id,
+      diagnosis,
+      clinical_summary,
+      treatment_plan,
+      symptoms
+    `)
+    .eq('membership_id', membership.id)
+    .in('status', ['completed', 'cancelled'])
+    .order('created_at', { ascending: false })
+    .limit(20);
+
+  // Get unique person IDs from consultations
+  const personIds = [...new Set((consultationHistory || []).map(c => c.person_id))];
+  
+  // Fetch all people data in one query
+  const { data: peopleData } = await supabase
+    .from('people')
+    .select('id, first_name, last_name, preferred_name, relationship')
+    .in('id', personIds);
+
+  // Create a map for quick lookup
+  const peopleMap = new Map(
+    (peopleData || []).map(person => [person.id, person])
+  );
+
+  // Transform consultation history data
+  const formattedHistory = (consultationHistory || []).map(consult => {
+    const person = peopleMap.get(consult.person_id);
+    return {
+      id: consult.id,
+      created_at: consult.created_at,
+      completed_at: consult.completed_at,
+      status: consult.status,
+      chief_complaint: consult.chief_complaint,
+      symptoms: consult.symptoms,
+      diagnosis: consult.diagnosis,
+      clinical_summary: consult.clinical_summary,
+      treatment_plan: consult.treatment_plan,
+      summary_url: undefined, // Will be added when column exists
+      family_member_name: person?.preferred_name || 
+        `${person?.first_name} ${person?.last_name}` || 'Unknown',
+      family_member_relationship: person?.relationship || 'unknown',
+    };
+  });
 
   /* =========================
      Render
@@ -108,6 +178,18 @@ export default async function DashboardPage() {
           </p>
         </header>
 
+        {/* Consultation Request CTA */}
+        <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <RequestConsultationButton 
+            intakeComplete={intakeComplete}
+            activeConsultation={safeActiveConsultation}
+            membershipId={membership.id}
+            personId={person?.id}
+            callbackPhone={person?.phone}
+            familyMembers={familyMembers || []}
+          />
+        </section>
+
         {/* Status Card */}
         <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Account Status</h2>
@@ -125,17 +207,14 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        {/* Your details - EDITABLE */}
-        <EditPersonalInfo person={person} />
-
-        {/* Medical snapshot - EDITABLE */}
-        <EditMedicalInfo person={person} medical={medical} membershipId={membership.id} />
-
-        {/* Emergency contacts - EDITABLE */}
-        <EditEmergencyContacts 
-          membershipId={membership.id} 
-          contacts={contacts || []} 
+        {/* Family Members */}
+        <FamilyMembersList 
+          membershipId={membership.id}
+          familyMembers={familyMembers || []}
         />
+
+        {/* Consultation History */}
+        <ConsultationHistory consultations={formattedHistory} />
       </div>
     </div>
   );

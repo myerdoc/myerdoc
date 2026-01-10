@@ -39,22 +39,36 @@ export default function VitalsKitForm({ membershipId }: Props) {
 
     setSubmitting(true);
 
-    const { error: updateError } = await supabase
-      .from('memberships')
-      .update({
-        vitals_kit_status: vitalsKitStatus,
-        onboarding_step: 'onboarding_complete',
-      })
-      .eq('id', membershipId);
+    try {
+      // 1️⃣ Update membership onboarding status
+      const { error: updateError } = await supabase
+        .from('memberships')
+        .update({
+          vitals_kit_status: vitalsKitStatus,
+          onboarding_step: 'onboarding_complete',
+        })
+        .eq('id', membershipId);
 
-    if (updateError) {
-      console.error('VITALS KIT ERROR:', updateError);
+      if (updateError) throw updateError;
+
+      // 2️⃣ Mark the primary member (self) as intake complete
+      const { error: personError } = await supabase
+        .from('people')
+        .update({ intake_complete: true })
+        .eq('membership_id', membershipId)
+        .eq('relationship', 'self');
+
+      if (personError) {
+        console.error('Failed to mark person intake complete:', personError);
+        // Don't fail the whole process if this fails
+      }
+
+      router.replace('/dashboard');
+    } catch (err) {
+      console.error('VITALS KIT ERROR:', err);
       setError('Failed to save vitals kit information.');
       setSubmitting(false);
-      return;
     }
-
-    router.replace('/dashboard');
   }
 
   return (
@@ -114,7 +128,7 @@ export default function VitalsKitForm({ membershipId }: Props) {
                     checked={selection === 'unsure'}
                     onChange={(e) => setSelection(e.target.value)}
                   />
-                  I’m not sure
+                  I'm not sure
                 </label>
               </div>
             </div>
