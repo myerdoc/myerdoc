@@ -44,7 +44,7 @@ export default function LoginPage() {
   }
 
   async function getUserRole(userId: string): Promise<string> {
-    const { data } = await supabase
+      const { data } = await (supabase as any)
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
