@@ -52,7 +52,7 @@ export default async function PatientChartPage({ params, searchParams }: PagePro
     );
   }
 
-  return <PatientChart data={data} consultationId={searchParams.consultationId} />;
+return <PatientChart data={data} />;
 }
 
 export async function generateMetadata({ params }: PageProps) {
