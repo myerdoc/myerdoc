@@ -463,14 +463,17 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
                 </div>
             </header>
 
-            {/* Main Content */}
-            <div className="flex h-[calc(100vh-80px)]">
+            {/* Main Content - MOBILE RESPONSIVE */}
+            <div className="flex flex-col md:flex-row h-[calc(100vh-80px)]">
                 {/* Patient Sidebar */}
-                <PatientSidebar patient={patient} consultationId={consultationId} />
+                <div className="md:w-80 md:flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 overflow-y-auto">
+                    <PatientSidebar patient={patient} consultationId={consultationId} />
+                </div>
                 
                 {/* Main Workspace */}
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="max-w-4xl mx-auto space-y-6">
+                        {/* Rest of the content continues exactly as before... */}
                         {/* Completed Banner */}
                         {isCompleted && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
