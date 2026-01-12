@@ -131,12 +131,12 @@ export async function getPatientChart(
     }
 
     // Fetch person details
-    const { data: person, error: personError } = await supabase
-      .from('people')
-      .select('*')
-      .eq('id', personId)
-      .single();
-
+const { data: person, error: personError } = await (supabase as any)
+  .from('people')
+  .select('*')
+  .eq('id', personId)
+  .single();
+  
     if (personError || !person) {
       console.error('Person fetch error:', personError);
       return { data: null, error: 'Patient not found' };
