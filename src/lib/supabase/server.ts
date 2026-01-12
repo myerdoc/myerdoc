@@ -15,16 +15,9 @@ export async function createServerSupabaseClient() {
           return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
-          // ⚠️ In Next.js 15+, we can only set cookies in Server Actions or Route Handlers
-          // During page rendering, this must be a no-op
-          try {
-            cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
-            });
-          } catch {
-            // Silently fail during page rendering - this is expected behavior
-            // Cookies will be set by the client-side Supabase client instead
-          }
+          // ⚠️ NO-OP: In Next.js 15+, cookies cannot be set during page rendering
+          // They must only be set in Server Actions or Route Handlers
+          // The client-side Supabase client will handle cookie updates instead
         },
       },
     }
