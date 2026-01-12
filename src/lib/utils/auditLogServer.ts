@@ -26,8 +26,7 @@ export async function logAuditServer(
   try {
     const supabase = await createServerSupabaseClient();
     
-    const { data, error } = await supabase.rpc('create_audit_log', {
-      p_action: action,
+const { data, error } = await (supabase as any).rpc('create_audit_log', {      p_action: action,
       p_resource_type: resourceType,
       p_resource_id: resourceId,
       p_patient_id: patientId,

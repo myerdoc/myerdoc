@@ -15,11 +15,11 @@ export default async function ClinicianLayout({
   }
 
   // Verify clinician role
-  const { data: roleData } = await supabase
-    .from('user_roles')
-    .select('role')
-    .eq('user_id', session.user.id)
-    .single()
+  const { data: roleData } = await (supabase as any)
+  .from('user_roles')
+  .select('role')
+  .eq('user_id', session.user.id)
+  .single()
 
   if (roleData?.role !== 'clinician' && roleData?.role !== 'admin') {
     redirect('/dashboard')
