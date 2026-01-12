@@ -44,7 +44,7 @@ export default function CompletedConsultations() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const { data: clinician } = await supabase
+            const { data: clinician } = await (supabase as any)
                 .from('clinicians')
                 .select('id')
                 .eq('user_id', user.id)
@@ -53,7 +53,7 @@ export default function CompletedConsultations() {
             if (!clinician) throw new Error('No clinician record found');
 
             // Fetch completed consultations
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('consultation_requests')
                 .select(`
                     id,
@@ -158,7 +158,7 @@ export default function CompletedConsultations() {
                         <button
                             key={consultation.id}
                             onClick={() => handleViewConsultation(consultation.id)}
-                            className="w-full px-6 py-4 hover:bg-gray-50 transition-colors text-left"
+                            className="w-full px-6 py-4 hover:bg-gray-50 transition-colors text-left cursor-pointer"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1 min-w-0">
@@ -201,7 +201,7 @@ export default function CompletedConsultations() {
                     <button
                         onClick={() => setPage(p => Math.max(1, p - 1))}
                         disabled={page === 1}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         Previous
                     </button>
@@ -211,7 +211,7 @@ export default function CompletedConsultations() {
                     <button
                         onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                         disabled={page === totalPages}
-                        className="px-3 py-1 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="px-3 py-1 border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
                     >
                         Next
                     </button>

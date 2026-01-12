@@ -1,19 +1,22 @@
-// utils/auth.js
-import { supabase } from '@/lib/supabaseClient';
+// utils/auth.ts
+import React, { useState, useEffect } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 /**
  * Gets the current user's role(s)
  * @returns {Promise<string|null>} The primary role or null
  */
-export async function getUserRole() {
+export async function getUserRole(): Promise<string | null> {
     try {
+        const supabase = createClient();
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError || !user) {
             return null;
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -34,15 +37,16 @@ export async function getUserRole() {
 /**
  * Gets the full user object with role information
  */
-export async function getUserWithRole() {
+export async function getUserWithRole(): Promise<any> {
     try {
+        const supabase = createClient();
         const { data: { user }, error: userError } = await supabase.auth.getUser();
         
         if (userError || !user) {
             return null;
         }
 
-        const { data: roleData } = await supabase
+        const { data: roleData } = await (supabase as any)
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -64,8 +68,9 @@ export async function getUserWithRole() {
  * @param {string} password 
  * @param {object} router - Next.js router
  */
-export async function handleLogin(email, password, router) {
+export async function handleLogin(email: string, password: string, router: any): Promise<{ success: boolean; role?: string; error?: string }> {
     try {
+        const supabase = createClient();
         const { data, error } = await supabase.auth.signInWithPassword({
             email,
             password
@@ -76,7 +81,7 @@ export async function handleLogin(email, password, router) {
         }
 
         // Get user role
-        const { data: roleData } = await supabase
+        const { data: roleData } = await (supabase as any)
             .from('user_roles')
             .select('role')
             .eq('user_id', data.user.id)
@@ -94,7 +99,7 @@ export async function handleLogin(email, password, router) {
         }
 
         return { success: true, role };
-    } catch (error) {
+    } catch (error: any) {
         console.error('Login error:', error);
         return { success: false, error: error.message };
     }
@@ -104,8 +109,8 @@ export async function handleLogin(email, password, router) {
  * Middleware to require clinician authentication
  * Use in API routes or getServerSideProps
  */
-export async function requireClinicianAuth(context) {
-    const { req } = context;
+export async function requireClinicianAuth(context: any): Promise<any> {
+    const supabase = createClient();
     
     // Get the session from the request
     const { data: { session } } = await supabase.auth.getSession();
@@ -120,7 +125,7 @@ export async function requireClinicianAuth(context) {
     }
 
     // Check role
-    const { data: roleData } = await supabase
+    const { data: roleData } = await (supabase as any)
         .from('user_roles')
         .select('role')
         .eq('user_id', session.user.id)
@@ -149,7 +154,7 @@ export async function requireClinicianAuth(context) {
  * Client-side auth guard for clinician routes
  * Use in useEffect or as a wrapper component
  */
-export async function useClinicianAuth() {
+export function useClinicianAuth(): { loading: boolean; authorized: boolean } {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
     const [authorized, setAuthorized] = useState(false);
@@ -159,6 +164,7 @@ export async function useClinicianAuth() {
     }, []);
 
     async function checkAuth() {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
@@ -166,7 +172,7 @@ export async function useClinicianAuth() {
             return;
         }
 
-        const { data: roleData } = await supabase
+        const { data: roleData } = await (supabase as any)
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -187,13 +193,14 @@ export async function useClinicianAuth() {
 /**
  * Gets clinician profile for current user
  */
-export async function getClinicianProfile() {
+export async function getClinicianProfile(): Promise<any> {
     try {
+        const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
         
         if (!user) return null;
 
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
             .from('clinicians')
             .select('*')
             .eq('user_id', user.id)
@@ -211,7 +218,7 @@ export async function getClinicianProfile() {
 /**
  * Checks if current user is a clinician
  */
-export async function isClinicianUser() {
+export async function isClinicianUser(): Promise<boolean> {
     const role = await getUserRole();
     return role === 'clinician' || role === 'admin';
 }
@@ -219,8 +226,8 @@ export async function isClinicianUser() {
 /**
  * Higher-order component to protect clinician routes
  */
-export function withClinicianAuth(Component) {
-    return function ProtectedComponent(props) {
+export function withClinicianAuth(Component: any) {
+    return function ProtectedComponent(props: any) {
         const { loading, authorized } = useClinicianAuth();
 
         if (loading) {
@@ -242,11 +249,13 @@ export function withClinicianAuth(Component) {
 /**
  * Hook to get current user session
  */
-export function useSession() {
-    const [session, setSession] = useState(null);
+export function useSession(): { session: any; loading: boolean } {
+    const [session, setSession] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
+        const supabase = createClient();
+        
         // Get initial session
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);

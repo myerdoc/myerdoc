@@ -1,13 +1,28 @@
-// components/clinician/ConsultationQueue.jsx
+// components/clinician/ConsultationQueue.tsx
 'use client';
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation'; // Changed from 'next/router'
+import { useRouter } from 'next/navigation';
 
-export default function ConsultationQueue({ onStatsUpdate, clinicianId }) {
-    const supabase = createClient(); // Add this
-    const [consultations, setConsultations] = useState([]);
+interface ConsultationQueueProps {
+    onStatsUpdate?: () => void;
+    clinicianId?: string;
+}
+
+interface Consultation {
+    id: string;
+    created_at: string;
+    patient_name: string;
+    age: number;
+    chief_complaint: string;
+    clinician_name: string | null;
+    status: string;
+}
+
+export default function ConsultationQueue({ onStatsUpdate, clinicianId }: ConsultationQueueProps) {
+    const supabase = createClient();
+    const [consultations, setConsultations] = useState<Consultation[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState('all');
     const router = useRouter();
@@ -39,7 +54,7 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }) {
 
     async function fetchConsultations() {
         try {
-            let query = supabase
+            let query = (supabase as any)
                 .from('consultation_queue')
                 .select('*')
                 .order('created_at', { ascending: true });
@@ -59,7 +74,7 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }) {
         }
     }
 
-    async function claimConsultation(consultationId) {
+    async function claimConsultation(consultationId: string) {
         try {
             const { error } = await supabase
                 .from('consultation_requests')
@@ -80,15 +95,15 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }) {
         }
     }
 
-    function getUrgencyColor(createdAt) {
-        const minutesAgo = (Date.now() - new Date(createdAt)) / 1000 / 60;
+    function getUrgencyColor(createdAt: string) {
+        const minutesAgo = (Date.now() - new Date(createdAt).getTime()) / 1000 / 60;
         if (minutesAgo < 30) return 'bg-green-100 text-green-800';
         if (minutesAgo < 60) return 'bg-yellow-100 text-yellow-800';
         return 'bg-red-100 text-red-800';
     }
 
-    function getTimeAgo(createdAt) {
-        const minutesAgo = Math.floor((Date.now() - new Date(createdAt)) / 1000 / 60);
+    function getTimeAgo(createdAt: string) {
+        const minutesAgo = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000 / 60);
         if (minutesAgo < 60) return `${minutesAgo}m ago`;
         const hoursAgo = Math.floor(minutesAgo / 60);
         if (hoursAgo < 24) return `${hoursAgo}h ago`;
@@ -188,14 +203,14 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }) {
                                             onClick={() =>
                                                 router.push(`/clinician/consultation-requests/${consultation.id}`)
                                             }
-                                            className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                                            className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer"
                                         >
                                             View Details →
                                         </button>
                                         {consultation.status === 'pending' && (
                                             <button
                                                 onClick={() => claimConsultation(consultation.id)}
-                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition cursor-pointer"
                                             >
                                                 Claim Consultation
                                             </button>

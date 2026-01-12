@@ -8,17 +8,92 @@ import { logAudit } from '@/lib/utils/auditLog';
 import PatientSidebar from './PatientSidebar';
 import AddendumModal from './AddendumModal';
 
-export default function ConsultationWorkspace({ consultationId }) {
+interface ConsultationWorkspaceProps {
+    consultationId: string;
+}
+
+interface VitalsData {
+    bp_systolic?: number | null;
+    bp_diastolic?: number | null;
+    hr?: number | null;
+    temp?: number | null;
+    rr?: number | null;
+    o2?: number | null;
+    recorded_at?: string;
+}
+
+interface Consultation {
+    id: string;
+    person_id?: string | null;
+    status: string;
+    chief_complaint: string;
+    symptoms?: string | null;
+    diagnosis?: string | null;
+    clinical_summary?: string | null;
+    treatment_plan?: string | null;
+    physician_notes?: string | null;
+    vitals_data?: VitalsData | null;
+    created_at: string;
+    updated_at: string;
+    completed_at?: string | null;
+    reviewed_at?: string | null;
+    clinician_id?: string | null;
+    assigned_physician_id?: string | null;
+    available_in?: string | null;
+    callback_phone?: string | null;
+    consultation_goals?: string[] | null;
+    urgency_level?: string | null;
+    [key: string]: any;
+}
+
+interface Patient {
+    id: string;
+    email?: string | null;
+    first_name?: string | null;
+    last_name?: string | null;
+    full_name?: string | null;
+    date_of_birth: string;
+    address_line1?: string | null;
+    address_line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    zip_code?: string | null;
+    phone?: string | null;
+    intake_complete?: boolean | null;
+    created_at?: string | null;
+    updated_at?: string | null;
+    medical_conditions?: any[];
+    surgical_history?: any[];
+    allergies?: any[];
+    medications?: any[];
+    [key: string]: any;
+}
+
+interface Addendum {
+    id: string;
+    consultation_id: string;
+    addendum_text: string;
+    addendum_type: 'general' | 'correction' | 'clarification' | 'follow_up';
+    reason?: string | null;
+    created_at: string;
+    clinicians?: {
+        first_name: string;
+        last_name: string;
+        credentials: string;
+    } | null;
+}
+
+export default function ConsultationWorkspace({ consultationId }: ConsultationWorkspaceProps) {
     const supabase = createClient();
     const router = useRouter();
-    const [consultation, setConsultation] = useState(null);
-    const [patient, setPatient] = useState(null);
+    const [consultation, setConsultation] = useState<Consultation | null>(null);
+    const [patient, setPatient] = useState<Patient | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     
     // Addendum modal state
     const [addendumModalOpen, setAddendumModalOpen] = useState(false);
-    const [addendums, setAddendums] = useState([]);
+    const [addendums, setAddendums] = useState<Addendum[]>([]);
     const [loadingAddendums, setLoadingAddendums] = useState(false);
     
     // Form state
@@ -58,10 +133,11 @@ export default function ConsultationWorkspace({ consultationId }) {
         }
     }, [consultationId]);
 
-    // Listen for addendum modal events from PriorConsultations component
+     // Listen for addendum modal events from PriorConsultations component
     useEffect(() => {
-        const handleOpenAddendum = (event) => {
-            console.log('Opening addendum for prior consultation:', event.detail.consultationId);
+        const handleOpenAddendum = (event: Event) => {
+            const customEvent = event as CustomEvent;
+            console.log('Opening addendum for prior consultation:', customEvent.detail.consultationId);
         };
 
         window.addEventListener('openAddendumModal', handleOpenAddendum);
@@ -73,7 +149,7 @@ export default function ConsultationWorkspace({ consultationId }) {
 
     async function fetchConsultation() {
         try {
-            const { data: consultationData, error: consultationError } = await supabase
+            const { data: consultationDataRaw, error: consultationError } = await supabase
                 .from('consultation_requests')
                 .select('*')
                 .eq('id', consultationId)
@@ -81,7 +157,14 @@ export default function ConsultationWorkspace({ consultationId }) {
 
             if (consultationError) throw consultationError;
 
-            const { data: patientData, error: patientError } = await supabase
+            // Cast to our Consultation type immediately
+            const consultationData = consultationDataRaw as any as Consultation;
+
+            if (!consultationData.person_id) {
+                throw new Error('Consultation does not have a patient ID');
+            }
+
+            const { data: patientDataRaw, error: patientError } = await supabase
                 .from('people')
                 .select(`
                     *,
@@ -94,6 +177,9 @@ export default function ConsultationWorkspace({ consultationId }) {
                 .single();
 
             if (patientError) throw patientError;
+
+            // Cast to our Patient type immediately
+            const patientData = patientDataRaw as any as Patient;
 
             setConsultation(consultationData);
             setPatient(patientData);
@@ -108,12 +194,12 @@ export default function ConsultationWorkspace({ consultationId }) {
             // Load existing vitals data
             if (consultationData.vitals_data) {
                 setVitals({
-                    bp_systolic: consultationData.vitals_data.bp_systolic || '',
-                    bp_diastolic: consultationData.vitals_data.bp_diastolic || '',
-                    hr: consultationData.vitals_data.hr || '',
-                    temp: consultationData.vitals_data.temp || '',
-                    rr: consultationData.vitals_data.rr || '',
-                    o2: consultationData.vitals_data.o2 || ''
+                    bp_systolic: consultationData.vitals_data.bp_systolic?.toString() || '',
+                    bp_diastolic: consultationData.vitals_data.bp_diastolic?.toString() || '',
+                    hr: consultationData.vitals_data.hr?.toString() || '',
+                    temp: consultationData.vitals_data.temp?.toString() || '',
+                    rr: consultationData.vitals_data.rr?.toString() || '',
+                    o2: consultationData.vitals_data.o2?.toString() || ''
                 });
             }
 
@@ -137,7 +223,7 @@ export default function ConsultationWorkspace({ consultationId }) {
         
         setLoadingAddendums(true);
         try {
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('consultation_addendums')
                 .select(`
                     *,
@@ -152,7 +238,7 @@ export default function ConsultationWorkspace({ consultationId }) {
 
             if (error) throw error;
             console.log('Fetched addendums:', data);
-            setAddendums(data || []);
+            setAddendums((data || []) as Addendum[]);
         } catch (error) {
             console.error('Error fetching addendums:', error);
         } finally {
@@ -161,7 +247,7 @@ export default function ConsultationWorkspace({ consultationId }) {
     }
 
     // Build vitals_data object for saving
-    function buildVitalsData() {
+    function buildVitalsData(): VitalsData | null {
         // Only include vitals if at least one value is entered
         const hasVitals = vitals.bp_systolic || vitals.bp_diastolic || vitals.hr || 
                          vitals.temp || vitals.rr || vitals.o2;
@@ -226,6 +312,8 @@ export default function ConsultationWorkspace({ consultationId }) {
             return;
         }
 
+        if (!consultation) return;
+
         setSaving(true);
         try {
             const { error } = await supabase
@@ -249,7 +337,7 @@ export default function ConsultationWorkspace({ consultationId }) {
                 'COMPLETE_CONSULTATION',
                 'consultation_request',
                 consultationId,
-                consultation.person_id,
+                consultation.person_id!,
                 { diagnosis: formData.diagnosis }
             );
 
@@ -263,12 +351,12 @@ export default function ConsultationWorkspace({ consultationId }) {
         }
     }
 
-    function handleAddendumSuccess(addendum) {
+    function handleAddendumSuccess(addendum: Addendum) {
         console.log('Addendum created successfully:', addendum);
         fetchAddendums();
     }
 
-    function handleInputChange(field, value) {
+    function handleInputChange(field: string, value: string) {
         if (isCompleted) {
             alert('Cannot edit a completed consultation. Please add an addendum instead.');
             return;
@@ -276,7 +364,7 @@ export default function ConsultationWorkspace({ consultationId }) {
         setFormData(prev => ({ ...prev, [field]: value }));
     }
 
-    function handleVitalsChange(field, value) {
+    function handleVitalsChange(field: string, value: string) {
         if (isCompleted) {
             return; // Silently ignore for vitals
         }
@@ -289,7 +377,7 @@ export default function ConsultationWorkspace({ consultationId }) {
         setVitals(prev => ({ ...prev, [field]: value }));
     }
 
-    function formatDate(dateString) {
+    function formatDate(dateString: string): string {
         return new Date(dateString).toLocaleString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -299,8 +387,8 @@ export default function ConsultationWorkspace({ consultationId }) {
         });
     }
 
-    function getAddendumTypeBadge(type) {
-        const badges = {
+    function getAddendumTypeBadge(type: string) {
+        const badges: Record<string, { bg: string; text: string; label: string }> = {
             general: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Update' },
             correction: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Correction' },
             clarification: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Clarification' },
@@ -672,7 +760,7 @@ export default function ConsultationWorkspace({ consultationId }) {
                                         </div>
                                     ) : (
                                         <div className="space-y-4">
-                                            {addendums.map((addendum) => (
+                                            {addendums.map((addendum: Addendum) => (
                                                 <div
                                                     key={addendum.id}
                                                     className="bg-amber-50 border-2 border-amber-200 rounded-lg p-5 shadow-sm"

@@ -11,19 +11,19 @@ export interface PatientChartData {
     preferred_name?: string;
     date_of_birth: string;
     email: string | null;
-    phone: string;
+    phone: string | null;
     address: string | null;
     city: string | null;
     state: string | null;
     zip_code: string | null;
     profile_photo_url: string | null;
-    created_at: string;
+    created_at: string | null;
   };
   membership: {
     id: string;
     status: string;
     plan_type: string | null;
-    created_at: string;
+    created_at: string | null;
   } | null;
   medicalHistory: {
     conditions: Array<{
@@ -106,7 +106,7 @@ export async function getPatientChart(
     }
 
     // Verify clinician access (check clinicians table)
-    const { data: clinician } = await supabase
+    const { data: clinician } = await (supabase as any)
       .from('clinicians')
       .select('id')
       .eq('user_id', user.id)
@@ -181,10 +181,10 @@ export async function getPatientChart(
       .from('emergency_contacts')
       .select('*')
       .eq('person_id', personId)
-      .order('is_primary', { ascending: false });
+      .order('created_at', { ascending: false });
 
-    // Fetch consultations
-    const { data: consultations } = await supabase
+    // Fetch consultations (removed 'notes' field which doesn't exist)
+    const { data: consultations } = await (supabase as any)
       .from('consultation_requests')
       .select(`
         id,
@@ -192,7 +192,6 @@ export async function getPatientChart(
         status,
         chief_complaint,
         diagnosis,
-        notes,
         treatment_plan,
         assigned_physician_id
       `)
@@ -201,9 +200,9 @@ export async function getPatientChart(
 
     // Add clinician names to consultations
     const consultationsWithClinician = await Promise.all(
-      (consultations || []).map(async (consultation) => {
+      (consultations || []).map(async (consultation: any) => {
         if (consultation.assigned_physician_id) {
-          const { data: clinicianData } = await supabase
+          const { data: clinicianData } = await (supabase as any)
             .from('clinicians')
             .select('first_name, last_name, credentials')
             .eq('id', consultation.assigned_physician_id)
@@ -211,12 +210,13 @@ export async function getPatientChart(
 
           return {
             ...consultation,
+            notes: null, // Add notes as null since it doesn't exist in the table
             clinician_name: clinicianData
               ? `${clinicianData.first_name} ${clinicianData.last_name}, ${clinicianData.credentials}`
               : null,
           };
         }
-        return { ...consultation, clinician_name: null };
+        return { ...consultation, notes: null, clinician_name: null };
       })
     );
 
@@ -228,7 +228,7 @@ export async function getPatientChart(
       .neq('id', personId);
 
     // Fetch audit logs
-    const { data: auditLogs } = await supabase
+    const { data: auditLogs } = await (supabase as any)
       .from('audit_logs')
       .select(`
         id,
@@ -243,11 +243,11 @@ export async function getPatientChart(
 
     // Add user details to audit logs
     const auditTrailWithUsers = await Promise.all(
-      (auditLogs || []).map(async (log) => {
+      (auditLogs || []).map(async (log: any) => {
         const { data: userData } = await supabase.auth.admin.getUserById(
           log.user_id
         );
-        const { data: roleData } = await supabase
+        const { data: roleData } = await (supabase as any)
           .from('user_roles')
           .select('role')
           .eq('user_id', log.user_id)
@@ -270,7 +270,7 @@ export async function getPatientChart(
         id: person.id,
         first_name: person.first_name,
         last_name: person.last_name,
-        preferred_name: person.preferred_name,
+        preferred_name: person.preferred_name || undefined,
         date_of_birth: person.date_of_birth,
         email: person.email,
         phone: person.phone,
@@ -278,7 +278,7 @@ export async function getPatientChart(
         city: person.city,
         state: person.state,
         zip_code: person.postal_code,  // ✅ FIXED: was "zip_code", should be "postal_code"
-        profile_photo_url: person.profile_photo_url,
+        profile_photo_url: null,  // Field doesn't exist in database schema
         created_at: person.created_at,
       },
       membership: membership
@@ -329,7 +329,7 @@ export async function getPatientChart(
           name: ec.name,
           relationship: ec.relationship,
           phone: ec.phone,
-          is_primary: ec.is_primary || false,
+          is_primary: false,  // Field doesn't exist in database schema, defaulting to false
         })) || [],
       consultations: consultationsWithClinician,
       familyMembers:

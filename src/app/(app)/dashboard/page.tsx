@@ -92,6 +92,12 @@ export default async function DashboardPage() {
     .eq('membership_id', membership.id)
     .order('relationship', { ascending: true });
 
+  // Transform family members to ensure intake_complete is always boolean
+  const safeFamilyMembers = (familyMembers || []).map(member => ({
+    ...member,
+    intake_complete: member.intake_complete ?? false
+  }));
+
   /* ---------- Active Consultation (if any) ---------- */
   const { data: activeConsultation, error: consultationError } = await supabase
     .from('consultation_requests')
@@ -103,7 +109,11 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   // Handle query errors by treating as no active consultation
-  const safeActiveConsultation = consultationError ? null : activeConsultation;
+  const safeActiveConsultation = consultationError || !activeConsultation ? null : {
+    ...activeConsultation,
+    status: activeConsultation.status ?? 'pending',
+    created_at: activeConsultation.created_at ?? new Date().toISOString()
+  };
 
   /* ---------- Consultation History ---------- */
   const { data: consultationHistory } = await supabase
@@ -139,20 +149,20 @@ export default async function DashboardPage() {
     (peopleData || []).map(person => [person.id, person])
   );
 
-  // Transform consultation history data
+  // Transform consultation history data with null safety
   const formattedHistory = (consultationHistory || []).map(consult => {
     const person = peopleMap.get(consult.person_id);
     return {
       id: consult.id,
-      created_at: consult.created_at,
-      completed_at: consult.completed_at,
-      status: consult.status,
+      created_at: consult.created_at ?? new Date().toISOString(),
+      completed_at: consult.completed_at ?? undefined,
+      status: consult.status ?? 'unknown',
       chief_complaint: consult.chief_complaint,
-      symptoms: consult.symptoms,
-      diagnosis: consult.diagnosis,
-      clinical_summary: consult.clinical_summary,
-      treatment_plan: consult.treatment_plan,
-      summary_url: undefined, // Will be added when column exists
+      symptoms: consult.symptoms ?? undefined,
+      diagnosis: consult.diagnosis ?? undefined,
+      clinical_summary: consult.clinical_summary ?? undefined,
+      treatment_plan: consult.treatment_plan ?? undefined,
+      summary_url: undefined,
       family_member_name: person?.preferred_name || 
         `${person?.first_name} ${person?.last_name}` || 'Unknown',
       family_member_relationship: person?.relationship || 'unknown',
@@ -186,7 +196,7 @@ export default async function DashboardPage() {
             membershipId={membership.id}
             personId={person?.id}
             callbackPhone={person?.phone}
-            familyMembers={familyMembers || []}
+            familyMembers={safeFamilyMembers}
           />
         </section>
 
@@ -210,7 +220,7 @@ export default async function DashboardPage() {
         {/* Family Members */}
         <FamilyMembersList 
           membershipId={membership.id}
-          familyMembers={familyMembers || []}
+          familyMembers={safeFamilyMembers}
         />
 
         {/* Consultation History */}

@@ -31,7 +31,9 @@ export default function ClinicianDashboard() {
     async function fetchClinicianData() {
         const { data: { user } } = await supabase.auth.getUser();
         
-        const { data, error } = await supabase
+        if (!user) return;
+
+        const { data, error } = await (supabase as any)
             .from('clinicians')
             .select('*')
             .eq('user_id', user.id)
@@ -46,8 +48,10 @@ export default function ClinicianDashboard() {
         try {
             const { data: { user } } = await supabase.auth.getUser();
             
+            if (!user) return;
+
             // Get clinician ID
-            const { data: clinicianData } = await supabase
+            const { data: clinicianData } = await (supabase as any)
                 .from('clinicians')
                 .select('id')
                 .eq('user_id', user.id)
@@ -56,7 +60,7 @@ export default function ClinicianDashboard() {
             if (!clinicianData) return;
 
             // Fetch dashboard stats
-            const { data, error } = await supabase
+            const { data, error } = await (supabase as any)
                 .from('clinician_dashboard_stats')
                 .select('*')
                 .eq('clinician_id', clinicianData.id)

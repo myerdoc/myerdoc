@@ -4,10 +4,58 @@
 import { useState } from 'react';
 import PriorConsultations from './PriorConsultations';
 
-export default function PatientSidebar({ patient, consultationId }) {
+interface Allergy {
+    id: string;
+    allergen: string;
+    reaction?: string | null;
+    severity?: string | null;
+}
+
+interface MedicalCondition {
+    id: string;
+    condition_label: string;
+    created_at?: string | null;
+    source?: string | null;
+}
+
+interface Medication {
+    id: string;
+    medication_name: string;
+    dose?: string | null;
+    frequency?: string | null;
+    route?: string | null;
+}
+
+interface Surgery {
+    id: string;
+    procedure: string;
+    approximate_date?: string | null;
+    notes?: string | null;
+    source?: string | null;
+}
+
+interface Patient {
+    id: string;
+    first_name?: string | null;
+    last_name?: string | null;
+    preferred_name?: string | null;
+    date_of_birth: string;
+    sex_at_birth?: string | null;
+    allergies?: Allergy[];
+    medical_conditions?: MedicalCondition[];
+    medications?: Medication[];
+    surgical_history?: Surgery[];
+}
+
+interface PatientSidebarProps {
+    patient: Patient;
+    consultationId: string;
+}
+
+export default function PatientSidebar({ patient, consultationId }: PatientSidebarProps) {
     const [activeTab, setActiveTab] = useState('overview');
 
-    function calculateAge(dateOfBirth) {
+    function calculateAge(dateOfBirth: string): number {
         // Parse date parts directly to avoid timezone issues
         const [year, month, day] = dateOfBirth.split('-').map(Number);
         const today = new Date();
@@ -20,7 +68,7 @@ export default function PatientSidebar({ patient, consultationId }) {
     }
 
     // Timezone-safe date formatting for date-only strings (YYYY-MM-DD)
-    function formatDateOfBirth(dateString) {
+    function formatDateOfBirth(dateString: string): string {
         if (!dateString) return 'Unknown';
         const [year, month, day] = dateString.split('-');
         if (!year || !month || !day) return dateString;

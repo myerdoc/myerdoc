@@ -1,10 +1,17 @@
-// components/clinician/StatsWidget.jsx
+// components/clinician/StatsWidget.tsx
 'use client';
 
 import { createClient } from '@/lib/supabase/client';
 
-export default function StatsWidget({ title, value, color, icon }) {
-    const colorClasses = {
+interface StatsWidgetProps {
+    title: string;
+    value: number | string;
+    color: 'red' | 'amber' | 'green' | 'blue';
+    icon: string;
+}
+
+export default function StatsWidget({ title, value, color, icon }: StatsWidgetProps) {
+    const colorClasses: Record<string, string> = {
         red: 'bg-red-50 text-red-700 border-red-200',
         amber: 'bg-amber-50 text-amber-700 border-amber-200',
         green: 'bg-green-50 text-green-700 border-green-200',

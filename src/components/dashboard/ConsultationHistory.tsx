@@ -65,7 +65,7 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
   async function fetchAddendums(consultationId: string) {
     try {
       const supabase = createClient();
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from('consultation_addendums')
         .select(`
           *,

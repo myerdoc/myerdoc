@@ -23,8 +23,8 @@ export async function cancelConsultationRequest(consultationId: string, membersh
   }
 
   // Only allow canceling pending or in_progress consultations
-  if (!['pending', 'in_progress'].includes(consultation.status)) {
-    return { error: `Cannot cancel consultation with status: ${consultation.status}` };
+  if (!consultation.status || !['pending', 'in_progress'].includes(consultation.status)) {
+    return { error: `Cannot cancel consultation with status: ${consultation.status || 'unknown'}` };
   }
 
   // Update status to cancelled
