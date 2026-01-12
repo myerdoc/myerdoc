@@ -7,7 +7,6 @@ import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = createClient();
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState("");
@@ -16,6 +15,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    const supabase = createClient();
+    
     checkExistingSession();
 
     const { data: authListener } = supabase.auth.onAuthStateChange(
@@ -33,6 +34,7 @@ export default function LoginPage() {
   }, []);
 
   async function checkExistingSession() {
+    const supabase = createClient();
     const { data } = await supabase.auth.getSession();
 
     if (data.session) {
@@ -44,7 +46,8 @@ export default function LoginPage() {
   }
 
   async function getUserRole(userId: string): Promise<string> {
-      const { data } = await (supabase as any)
+    const supabase = createClient();
+    const { data } = await (supabase as any)
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
@@ -55,7 +58,7 @@ export default function LoginPage() {
 
   function redirectByRole(role: string) {
     if (role === "clinician" || role === "admin") {
-      router.replace("/clinician/dashboard"); // ✅ CORRECT
+      router.replace("/clinician/dashboard");
     } else {
       router.replace("/dashboard");
     }
@@ -66,6 +69,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
 
+    const supabase = createClient();
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
