@@ -91,6 +91,9 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     
+    // Mobile sidebar state
+    const [sidebarOpen, setSidebarOpen] = useState(false);
+    
     // Addendum modal state
     const [addendumModalOpen, setAddendumModalOpen] = useState(false);
     const [addendums, setAddendums] = useState<Addendum[]>([]);
@@ -425,14 +428,33 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
                 <div className="max-w-full px-6 py-4">
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
+                            {/* Mobile Menu Button */}
+                            <button
+                                onClick={() => setSidebarOpen(true)}
+                                className="md:hidden p-2 rounded-md hover:bg-gray-100"
+                                aria-label="Open patient sidebar"
+                            >
+                                <svg
+                                    className="w-6 h-6 text-gray-600"
+                                    fill="none"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth="2"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                >
+                                    <path d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
+
                             <button
                                 onClick={() => router.push('/clinician/dashboard')}
                                 className="text-gray-600 hover:text-gray-900 cursor-pointer"
                             >
                                 ← Back to Dashboard
                             </button>
-                            <span className="text-gray-400">|</span>
-                            <h1 className="text-xl font-semibold">
+                            <span className="text-gray-400 hidden sm:inline">|</span>
+                            <h1 className="text-xl font-semibold hidden sm:block">
                                 {consultation.chief_complaint}
                             </h1>
                             {isCompleted && (
@@ -453,7 +475,7 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
                                 <button
                                     onClick={handleComplete}
                                     disabled={saving}
-                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
+                                    className="hidden sm:block px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50"
                                 >
                                     Mark as Complete
                                 </button>
@@ -463,17 +485,50 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
                 </div>
             </header>
 
-            {/* Main Content - MOBILE RESPONSIVE */}
-            <div className="flex flex-col md:flex-row h-[calc(100vh-80px)]">
-                {/* Patient Sidebar */}
-                <div className="md:w-80 md:flex-shrink-0 border-b md:border-b-0 md:border-r border-gray-200 overflow-y-auto">
+            {/* Main Content */}
+            <div className="md:flex h-[calc(100vh-80px)]">
+                {/* Mobile Backdrop */}
+                {sidebarOpen && (
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-50 z-30 md:hidden"
+                        onClick={() => setSidebarOpen(false)}
+                    />
+                )}
+
+                {/* Patient Sidebar - Collapsible on Mobile */}
+                <div
+                    className={`
+                        fixed inset-y-0 left-0 z-40 w-80 bg-white border-r border-gray-200 overflow-y-auto transform transition-transform duration-300 ease-in-out
+                        md:static md:transform-none
+                        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
+                    `}
+                >
+                    {/* Close button for mobile */}
+                    <div className="md:hidden flex justify-end p-4 border-b border-gray-200">
+                        <button
+                            onClick={() => setSidebarOpen(false)}
+                            className="p-2 rounded-md hover:bg-gray-100"
+                            aria-label="Close sidebar"
+                        >
+                            <svg
+                                className="w-6 h-6 text-gray-600"
+                                fill="none"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth="2"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                            >
+                                <path d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                     <PatientSidebar patient={patient} consultationId={consultationId} />
                 </div>
                 
                 {/* Main Workspace */}
                 <div className="flex-1 overflow-y-auto p-6">
                     <div className="max-w-4xl mx-auto space-y-6">
-                        {/* Rest of the content continues exactly as before... */}
                         {/* Completed Banner */}
                         {isCompleted && (
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
