@@ -1056,6 +1056,64 @@ export type Database = {
           },
         ]
       }
+      physician_schedules: {
+        Row: {
+          clinician_id: string
+          created_at: string
+          id: string
+          is_active: boolean | null
+          notes: string | null
+          schedule_date: string
+          shift_end: string
+          shift_start: string
+          updated_at: string
+        }
+        Insert: {
+          clinician_id: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          schedule_date: string
+          shift_end?: string
+          shift_start?: string
+          updated_at?: string
+        }
+        Update: {
+          clinician_id?: string
+          created_at?: string
+          id?: string
+          is_active?: boolean | null
+          notes?: string | null
+          schedule_date?: string
+          shift_end?: string
+          shift_start?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "physician_schedules_clinician_id_fkey"
+            columns: ["clinician_id"]
+            isOneToOne: false
+            referencedRelation: "clinician_dashboard_stats"
+            referencedColumns: ["clinician_id"]
+          },
+          {
+            foreignKeyName: "physician_schedules_clinician_id_fkey"
+            columns: ["clinician_id"]
+            isOneToOne: false
+            referencedRelation: "clinicians"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "physician_schedules_clinician_id_fkey"
+            columns: ["clinician_id"]
+            isOneToOne: false
+            referencedRelation: "locked_accounts_monitor"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       prescriptions: {
         Row: {
           clinician_id: string | null
@@ -1388,9 +1446,31 @@ export type Database = {
             }
             Returns: string
           }
+      get_current_on_call_clinician: {
+        Args: never
+        Returns: {
+          clinician_id: string
+          clinician_name: string
+          shift_end: string
+          shift_start: string
+        }[]
+      }
+      get_on_call_clinician_at_time: {
+        Args: { p_check_time: string }
+        Returns: {
+          clinician_id: string
+          clinician_name: string
+          shift_end: string
+          shift_start: string
+        }[]
+      }
       get_user_membership_id: { Args: never; Returns: string }
       is_admin: { Args: never; Returns: boolean }
       is_clinician: { Args: never; Returns: boolean }
+      is_clinician_on_call: {
+        Args: { p_check_time?: string; p_clinician_id: string }
+        Returns: boolean
+      }
       log_access_denied: {
         Args: {
           p_action: string

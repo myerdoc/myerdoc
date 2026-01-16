@@ -122,6 +122,12 @@ export default function ClinicianDashboard() {
                             {clinician?.credentials && `, ${clinician.credentials}`}
                         </span>
                         <Link
+                            href="/clinician/schedule"
+                            className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+                        >
+                            Schedule
+                        </Link>
+                        <Link
                             href="/clinician/settings"
                             className="text-sm font-semibold text-slate-600 hover:text-slate-900"
                         >
