@@ -283,7 +283,7 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
                     clinical_summary: formData.clinical_summary,
                     treatment_plan: formData.treatment_plan,
                     physician_notes: formData.physician_notes,
-                    vitals_data: buildVitalsData(),
+                    vitals_data: buildVitalsData() as any,
                     updated_at: new Date().toISOString()
                 })
                 .eq('id', consultationId);
@@ -326,7 +326,7 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
                     clinical_summary: formData.clinical_summary,
                     treatment_plan: formData.treatment_plan,
                     physician_notes: formData.physician_notes,
-                    vitals_data: buildVitalsData(),
+                    vitals_data: buildVitalsData() as any,
                     status: 'completed',
                     completed_at: new Date().toISOString(),
                     reviewed_at: new Date().toISOString(),

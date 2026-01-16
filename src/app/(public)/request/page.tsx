@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export default function RequestPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const supabase = createClient();
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -16,16 +18,14 @@ export default function RequestPage() {
     const formData = new FormData(e.currentTarget);
 
     const { error } = await supabase.from("intake_requests").insert({
-      type: "request",
-      name: formData.get("name"),
-      email: formData.get("email"),
-      phone: formData.get("phone"),
-      concern: formData.get("interest"),
-      consent: true,
-      status: "new",
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      phone: formData.get("phone") as string || null,
+      concern: formData.get("interest") as string,
     });
 
     if (error) {
+      console.error("Error submitting request:", error);
       setError("Something went wrong. Please try again.");
       setLoading(false);
       return;

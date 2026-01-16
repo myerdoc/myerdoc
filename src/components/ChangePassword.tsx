@@ -93,20 +93,18 @@ export default function ChangePassword({ userType, onSuccess }: ChangePasswordPr
         throw updateError;
       }
 
-      // Log the password change in audit trail
+      // Log the password change in audit logs
       const auditData = {
         user_id: user.id,
-        action_type: 'password_change',
-        action_details: {
+        action: 'password_change',
+        resource_type: 'user_authentication',
+        details: {
           user_type: userType,
           timestamp: new Date().toISOString(),
         },
-        ip_address: null, // Can be populated if you have IP tracking
-        created_at: new Date().toISOString(),
       };
 
-      await supabase.from('audit_trail').insert(auditData);
-
+      await supabase.from('audit_logs').insert(auditData);
       setMessage({ type: 'success', text: 'Password changed successfully' });
       
       // Clear form

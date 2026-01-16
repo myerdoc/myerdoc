@@ -11,13 +11,13 @@ interface ConsultationQueueProps {
 }
 
 interface Consultation {
-    id: string;
-    created_at: string;
-    patient_name: string;
-    age: number;
-    chief_complaint: string;
+    id: string | null;
+    created_at: string | null;
+    patient_name: string | null;
+    age: number | null;
+    chief_complaint: string | null;
     clinician_name: string | null;
-    status: string;
+    status: string | null;
 }
 
 export default function ConsultationQueue({ onStatsUpdate, clinicianId }: ConsultationQueueProps) {
@@ -95,14 +95,16 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }: Consul
         }
     }
 
-    function getUrgencyColor(createdAt: string) {
+    function getUrgencyColor(createdAt: string | null) {
+        if (!createdAt) return 'bg-gray-100 text-gray-800';
         const minutesAgo = (Date.now() - new Date(createdAt).getTime()) / 1000 / 60;
         if (minutesAgo < 30) return 'bg-green-100 text-green-800';
         if (minutesAgo < 60) return 'bg-yellow-100 text-yellow-800';
         return 'bg-red-100 text-red-800';
     }
 
-    function getTimeAgo(createdAt: string) {
+    function getTimeAgo(createdAt: string | null) {
+        if (!createdAt) return 'N/A';
         const minutesAgo = Math.floor((Date.now() - new Date(createdAt).getTime()) / 1000 / 60);
         if (minutesAgo < 60) return `${minutesAgo}m ago`;
         const hoursAgo = Math.floor(minutesAgo / 60);
@@ -162,78 +164,87 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }: Consul
                         <p className="text-gray-500">No consultations in queue</p>
                     </div>
                 ) : (
-                    consultations.map((consultation) => (
-                        <div
-                            key={consultation.id}
-                            className="px-6 py-4 hover:bg-gray-50 transition"
-                        >
-                            <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                    <div className="flex items-center space-x-3 mb-2">
-                                        <span
-                                            className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(
-                                                consultation.created_at
-                                            )}`}
-                                        >
-                                            {getTimeAgo(consultation.created_at)}
-                                        </span>
-                                        <h3 className="text-lg font-semibold text-gray-900">
-                                            {consultation.patient_name}
-                                        </h3>
-                                        <span className="text-sm text-gray-500">
-                                            Age {consultation.age}
-                                        </span>
-                                    </div>
+                    consultations.map((consultation) => {
+                        // Skip consultations with missing critical data
+                        if (!consultation.id || !consultation.patient_name || !consultation.chief_complaint) {
+                            return null;
+                        }
 
-                                    <div className="space-y-1 mb-3">
-                                        <p className="text-sm text-gray-600">
-                                            <span className="font-medium">Chief Complaint:</span>{' '}
-                                            {consultation.chief_complaint}
-                                        </p>
-                                        {consultation.clinician_name && (
-                                            <p className="text-sm text-gray-600">
-                                                <span className="font-medium">Assigned to:</span>{' '}
-                                                {consultation.clinician_name}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    <div className="flex items-center space-x-3">
-                                        <button
-                                            onClick={() =>
-                                                router.push(`/clinician/consultation-requests/${consultation.id}`)
-                                            }
-                                            className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer"
-                                        >
-                                            View Details →
-                                        </button>
-                                        {consultation.status === 'pending' && (
-                                            <button
-                                                onClick={() => claimConsultation(consultation.id)}
-                                                className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition cursor-pointer"
+                        return (
+                            <div
+                                key={consultation.id}
+                                className="px-6 py-4 hover:bg-gray-50 transition"
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className="flex items-center space-x-3 mb-2">
+                                            <span
+                                                className={`px-2 py-1 rounded-full text-xs font-medium ${getUrgencyColor(
+                                                    consultation.created_at
+                                                )}`}
                                             >
-                                                Claim Consultation
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                                {getTimeAgo(consultation.created_at)}
+                                            </span>
+                                            <h3 className="text-lg font-semibold text-gray-900">
+                                                {consultation.patient_name}
+                                            </h3>
+                                            {consultation.age && (
+                                                <span className="text-sm text-gray-500">
+                                                    Age {consultation.age}
+                                                </span>
+                                            )}
+                                        </div>
 
-                                <div className="ml-4">
-                                    <span
-                                        className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
-                                            consultation.status === 'pending'
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : consultation.status === 'in_progress'
-                                                ? 'bg-blue-100 text-blue-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                        }`}
-                                    >
-                                        {consultation.status.replace('_', ' ').toUpperCase()}
-                                    </span>
+                                        <div className="space-y-1 mb-3">
+                                            <p className="text-sm text-gray-600">
+                                                <span className="font-medium">Chief Complaint:</span>{' '}
+                                                {consultation.chief_complaint}
+                                            </p>
+                                            {consultation.clinician_name && (
+                                                <p className="text-sm text-gray-600">
+                                                    <span className="font-medium">Assigned to:</span>{' '}
+                                                    {consultation.clinician_name}
+                                                </p>
+                                            )}
+                                        </div>
+
+                                        <div className="flex items-center space-x-3">
+                                            <button
+                                                onClick={() =>
+                                                    router.push(`/clinician/consultation-requests/${consultation.id}`)
+                                                }
+                                                className="text-blue-600 hover:text-blue-700 text-sm font-medium cursor-pointer"
+                                            >
+                                                View Details →
+                                            </button>
+                                            {consultation.status === 'pending' && (
+                                                <button
+                                                    onClick={() => claimConsultation(consultation.id!)}
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition cursor-pointer"
+                                                >
+                                                    Claim Consultation
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="ml-4">
+                                        <span
+                                            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                                                consultation.status === 'pending'
+                                                    ? 'bg-yellow-100 text-yellow-800'
+                                                    : consultation.status === 'in_progress'
+                                                    ? 'bg-blue-100 text-blue-800'
+                                                    : 'bg-gray-100 text-gray-800'
+                                            }`}
+                                        >
+                                            {consultation.status?.replace('_', ' ').toUpperCase() || 'UNKNOWN'}
+                                        </span>
+                                    </div>
                                 </div>
                             </div>
-                        </div>
-                    ))
+                        );
+                    })
                 )}
             </div>
         </div>

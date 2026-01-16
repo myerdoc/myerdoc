@@ -18,9 +18,9 @@ interface Consultation {
     id: string;
     chief_complaint: string;
     diagnosis: string | null;
-    status: string;
-    completed_at: string;
-    created_at: string;
+    status: string | null;
+    completed_at: string | null;
+    created_at: string | null;
     person_id: string;
     people: Person;
 }
@@ -85,7 +85,8 @@ export default function CompletedConsultations() {
         }
     }
 
-    function formatDate(dateString: string) {
+    function formatDate(dateString: string | null) {
+        if (!dateString) return 'N/A';
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
             month: 'short',
@@ -107,7 +108,8 @@ export default function CompletedConsultations() {
     }
 
     function handleViewConsultation(consultationId: string) {
-        router.push(`/clinician/consultation-requests/${consultationId}`);    }
+        router.push(`/clinician/consultation-requests/${consultationId}`);
+    }
 
     if (loading) {
         return (

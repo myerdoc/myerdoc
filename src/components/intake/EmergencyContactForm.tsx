@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase/client";
 
@@ -21,8 +21,33 @@ export default function EmergencyContactForm({ membershipId }: Props) {
     { name: "", relationship: "", phone: "" },
   ]);
 
+  const [personId, setPersonId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch the person_id for the primary member (self) on mount
+  useEffect(() => {
+    async function fetchPersonId() {
+      // Find the primary person (relationship = 'self') for this membership
+      const { data, error } = await supabase
+        .from("people")
+        .select("id")
+        .eq("membership_id", membershipId)
+        .eq("relationship", "self")
+        .single();
+
+      if (error || !data?.id) {
+        console.error("Failed to fetch person_id:", error);
+        setError("Failed to load membership data.");
+      } else {
+        setPersonId(data.id);
+      }
+      setLoading(false);
+    }
+
+    fetchPersonId();
+  }, [membershipId]);
 
   function formatPhone(value: string) {
     const digits = value.replace(/\D/g, "").slice(0, 10);
@@ -58,6 +83,11 @@ export default function EmergencyContactForm({ membershipId }: Props) {
 
     setError(null);
 
+    if (!personId) {
+      setError("Unable to save: missing person ID.");
+      return;
+    }
+
     // Validate first contact only
     const primary = contacts[0];
     if (!primary.name || !primary.relationship || !primary.phone) {
@@ -68,11 +98,11 @@ export default function EmergencyContactForm({ membershipId }: Props) {
     setSubmitting(true);
 
     try {
-      // 🔥 DELETE existing emergency contacts for this membership
+      // Delete existing emergency contacts for this person
       const { error: deleteError } = await supabase
         .from("emergency_contacts")
         .delete()
-        .eq("membership_id", membershipId);
+        .eq("person_id", personId);
 
       if (deleteError) {
         console.error(deleteError);
@@ -90,6 +120,7 @@ export default function EmergencyContactForm({ membershipId }: Props) {
           .from("emergency_contacts")
           .insert({
             membership_id: membershipId,
+            person_id: personId,
             name: contact.name.trim(),
             relationship: contact.relationship.trim(),
             phone: contact.phone.trim(),
@@ -124,6 +155,18 @@ export default function EmergencyContactForm({ membershipId }: Props) {
       setError("An unexpected error occurred.");
       setSubmitting(false);
     }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-slate-50 py-12">
+        <div className="mx-auto max-w-2xl px-6">
+          <div className="rounded-xl bg-white p-8 shadow-sm">
+            <p className="text-slate-600">Loading...</p>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

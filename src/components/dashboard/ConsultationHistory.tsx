@@ -1,9 +1,6 @@
-// components/dashboard/ConsultationHistory.tsx
-// UPDATED VERSION - Shows addendums to patients
-
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { ChevronDown, ChevronUp, FileText, Calendar, User, Stethoscope, ClipboardList, Pill, AlertCircle } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -25,9 +22,9 @@ interface ConsultationRecord {
 interface Addendum {
   id: string;
   addendum_text: string;
-  addendum_type: string;
+  addendum_type: string | null;
   reason?: string;
-  created_at: string;
+  created_at: string | null;
   clinicians: {
     first_name: string;
     last_name: string;
@@ -43,7 +40,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [addendums, setAddendums] = useState<Record<string, Addendum[]>>({});
 
-  // Filter to show completed and cancelled consultations
   const historicalConsultations = consultations.filter(
     c => c.status === 'completed' || c.status === 'cancelled'
   );
@@ -56,7 +52,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
     const newExpandedId = expandedId === id ? null : id;
     setExpandedId(newExpandedId);
     
-    // Fetch addendums when expanding if not already loaded
     if (newExpandedId && !addendums[id]) {
       await fetchAddendums(id);
     }
@@ -79,7 +74,7 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setAddendums(prev => ({ ...prev, [consultationId]: data || [] }));
+      setAddendums(prev => ({ ...prev, [consultationId]: (data || []) as Addendum[] }));
     } catch (error) {
       console.error('Error fetching addendums:', error);
     }
@@ -94,7 +89,8 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
     });
   };
 
-  const formatDateTime = (dateString: string) => {
+  const formatDateTime = (dateString: string | null) => {
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleString('en-US', {
       year: 'numeric',
@@ -123,14 +119,14 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
     return null;
   };
 
-  const getAddendumTypeBadge = (type: string) => {
+  const getAddendumTypeBadge = (type: string | null) => {
     const badges: Record<string, { bg: string; text: string; label: string }> = {
       general: { bg: 'bg-blue-100', text: 'text-blue-800', label: 'Update' },
       correction: { bg: 'bg-amber-100', text: 'text-amber-800', label: 'Correction' },
       clarification: { bg: 'bg-purple-100', text: 'text-purple-800', label: 'Clarification' },
       follow_up: { bg: 'bg-green-100', text: 'text-green-800', label: 'Follow-up' },
     };
-    const badge = badges[type] || badges.general;
+    const badge = badges[type || 'general'] || badges.general;
     return (
       <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${badge.bg} ${badge.text}`}>
         {badge.label}
@@ -138,7 +134,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
     );
   };
 
-  // Helper function to format clinician name
   const formatClinicianName = (clinician: Addendum['clinicians']) => {
     if (!clinician) {
       return 'Your care team';
@@ -174,14 +169,12 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
 
           return (
             <div key={consultation.id} className="bg-white">
-              {/* Consultation Row - Clickable */}
               <button
                 onClick={() => toggleExpand(consultation.id)}
                 className="w-full px-6 py-4 text-left hover:bg-slate-50 transition-colors duration-150"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1 min-w-0">
-                    {/* Chief Complaint with Status Badge */}
                     <div className="flex items-center gap-2 mb-2">
                       <h3 className="font-medium text-slate-900">
                         {consultation.chief_complaint}
@@ -194,7 +187,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                       )}
                     </div>
 
-                    {/* Meta info */}
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-slate-600">
                       <span className="flex items-center gap-1.5">
                         <Calendar className="w-3.5 h-3.5" />
@@ -212,7 +204,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                     </div>
                   </div>
 
-                  {/* Expand/Collapse Icon */}
                   <div className="flex-shrink-0 pt-1">
                     {isExpanded ? (
                       <ChevronUp className="w-5 h-5 text-slate-400" />
@@ -223,7 +214,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                 </div>
               </button>
 
-              {/* Expanded Details */}
               {isExpanded && (
                 <div className="px-6 pb-6 border-t border-slate-100 bg-slate-50/50">
                   {!isCompleted ? (
@@ -241,7 +231,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                     </div>
                   ) : (
                     <div className="pt-4 space-y-4">
-                      {/* Chief Complaint & Symptoms */}
                       <div className="bg-white rounded-lg p-4 border border-slate-200">
                         <div className="flex items-start gap-2 mb-2">
                           <ClipboardList className="w-4 h-4 text-slate-500 mt-0.5" />
@@ -261,7 +250,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                         </div>
                       </div>
 
-                      {/* Diagnosis */}
                       {consultation.diagnosis && (
                         <div className="bg-white rounded-lg p-4 border border-slate-200">
                           <div className="flex items-start gap-2">
@@ -278,7 +266,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                         </div>
                       )}
 
-                      {/* Clinical Summary */}
                       {consultation.clinical_summary && (
                         <div className="bg-white rounded-lg p-4 border border-slate-200">
                           <div className="flex items-start gap-2">
@@ -295,7 +282,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                         </div>
                       )}
 
-                      {/* Treatment Plan */}
                       {consultation.treatment_plan && (
                         <div className="bg-white rounded-lg p-4 border border-blue-100 bg-blue-50/30">
                           <div className="flex items-start gap-2">
@@ -312,7 +298,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                         </div>
                       )}
 
-                      {/* Addendums */}
                       {consultationAddendums.length > 0 && (
                         <div className="bg-white rounded-lg p-4 border border-amber-200">
                           <div className="flex items-start gap-2 mb-3">
@@ -354,7 +339,6 @@ export default function ConsultationHistory({ consultations }: ConsultationHisto
                         </div>
                       )}
 
-                      {/* Summary Link (if exists) */}
                       {consultation.summary_url && (
                         <div className="pt-2">
                           <a
