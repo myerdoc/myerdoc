@@ -106,7 +106,7 @@ export async function getPatientChart(
     }
 
     // Verify clinician access (check clinicians table)
-    const { data: clinician } = await (supabase as any)
+    const { data: clinician } = await supabase
       .from('clinicians')
       .select('id')
       .eq('user_id', user.id)
@@ -131,7 +131,7 @@ export async function getPatientChart(
     }
 
     // Fetch person details
-const { data: person, error: personError } = await (supabase as any)
+const { data: person, error: personError } = await supabase
   .from('people')
   .select('*')
   .eq('id', personId)
@@ -184,7 +184,7 @@ const { data: person, error: personError } = await (supabase as any)
       .order('created_at', { ascending: false });
 
     // Fetch consultations (removed 'notes' field which doesn't exist)
-    const { data: consultations } = await (supabase as any)
+    const { data: consultations } = await supabase
       .from('consultation_requests')
       .select(`
         id,
@@ -202,7 +202,7 @@ const { data: person, error: personError } = await (supabase as any)
     const consultationsWithClinician = await Promise.all(
       (consultations || []).map(async (consultation: any) => {
         if (consultation.assigned_physician_id) {
-          const { data: clinicianData } = await (supabase as any)
+          const { data: clinicianData } = await supabase
             .from('clinicians')
             .select('first_name, last_name, credentials')
             .eq('id', consultation.assigned_physician_id)
@@ -228,7 +228,7 @@ const { data: person, error: personError } = await (supabase as any)
       .neq('id', personId);
 
     // Fetch audit logs
-    const { data: auditLogs } = await (supabase as any)
+    const { data: auditLogs } = await supabase
       .from('audit_logs')
       .select(`
         id,
@@ -247,7 +247,7 @@ const { data: person, error: personError } = await (supabase as any)
         const { data: userData } = await supabase.auth.admin.getUserById(
           log.user_id
         );
-        const { data: roleData } = await (supabase as any)
+        const { data: roleData } = await supabase
           .from('user_roles')
           .select('role')
           .eq('user_id', log.user_id)

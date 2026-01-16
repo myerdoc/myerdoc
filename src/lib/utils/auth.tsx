@@ -16,7 +16,7 @@ export async function getUserRole(): Promise<string | null> {
             return null;
         }
 
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -46,7 +46,7 @@ export async function getUserWithRole(): Promise<any> {
             return null;
         }
 
-        const { data: roleData } = await (supabase as any)
+        const { data: roleData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -81,7 +81,7 @@ export async function handleLogin(email: string, password: string, router: any):
         }
 
         // Get user role
-        const { data: roleData } = await (supabase as any)
+        const { data: roleData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', data.user.id)
@@ -125,7 +125,7 @@ export async function requireClinicianAuth(context: any): Promise<any> {
     }
 
     // Check role
-    const { data: roleData } = await (supabase as any)
+    const { data: roleData } = await supabase
         .from('user_roles')
         .select('role')
         .eq('user_id', session.user.id)
@@ -172,7 +172,7 @@ export function useClinicianAuth(): { loading: boolean; authorized: boolean } {
             return;
         }
 
-        const { data: roleData } = await (supabase as any)
+        const { data: roleData } = await supabase
             .from('user_roles')
             .select('role')
             .eq('user_id', user.id)
@@ -200,7 +200,7 @@ export async function getClinicianProfile(): Promise<any> {
         
         if (!user) return null;
 
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('clinicians')
             .select('*')
             .eq('user_id', user.id)

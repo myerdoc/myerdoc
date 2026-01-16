@@ -87,6 +87,10 @@ export default function Header() {
                 Dashboard
               </Link>
 
+              <Link href="/settings" className="text-sm font-semibold">
+                Settings
+              </Link>
+
               <Link
                 href="/membership/intake"
                 className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white"
@@ -180,6 +184,13 @@ export default function Header() {
                     className="block py-3 text-base font-medium text-slate-800 hover:bg-slate-50 rounded-md px-3 -mx-3"
                   >
                     Dashboard
+                  </Link>
+                  <Link 
+                    href="/settings" 
+                    onClick={() => setOpen(false)}
+                    className="block py-3 text-base font-medium text-slate-800 hover:bg-slate-50 rounded-md px-3 -mx-3"
+                  >
+                    Settings
                   </Link>
                   <Link
                     href="/membership/intake"

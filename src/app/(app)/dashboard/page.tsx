@@ -93,7 +93,7 @@ export default async function DashboardPage() {
     .order('relationship', { ascending: true });
 
   // Transform family members to ensure intake_complete is always boolean
-  const safeFamilyMembers = (familyMembers || []).map(member => ({
+  const safeFamilyMembers = (familyMembers || []).map((member: any) => ({
     ...member,
     intake_complete: member.intake_complete ?? false
   }));
@@ -116,27 +116,28 @@ export default async function DashboardPage() {
   };
 
   /* ---------- Consultation History ---------- */
-  const { data: consultationHistory } = await (supabase as any)
-  .from('consultation_requests')
-  .select(`
-    id,
-    created_at,
-    completed_at,
-    status,
-    chief_complaint,
-    person_id,
-    diagnosis,
-    clinical_summary,
-    treatment_plan,
-    symptoms
-  `)
+  const { data: consultationHistory } = await supabase
+    .from('consultation_requests')
+    .select(`
+      id,
+      created_at,
+      completed_at,
+      status,
+      chief_complaint,
+      person_id,
+      diagnosis,
+      clinical_summary,
+      treatment_plan,
+      symptoms
+    `)
     .eq('membership_id', membership.id)
     .in('status', ['completed', 'cancelled'])
     .order('created_at', { ascending: false })
     .limit(20);
 
   // Get unique person IDs from consultations
-  const personIds = [...new Set((consultationHistory || []).map((c: any) => c.person_id))] as string[];  
+  const personIds = [...new Set((consultationHistory || []).map((c: any) => c.person_id))] as string[];
+  
   // Fetch all people data in one query
   const { data: peopleData } = await supabase
     .from('people')
@@ -149,7 +150,8 @@ export default async function DashboardPage() {
   );
 
   // Transform consultation history data with null safety
-const formattedHistory = (consultationHistory || []).map((consult: any) => {    const person = peopleMap.get(consult.person_id);
+  const formattedHistory = (consultationHistory || []).map((consult: any) => {
+    const person = peopleMap.get(consult.person_id);
     return {
       id: consult.id,
       created_at: consult.created_at ?? new Date().toISOString(),

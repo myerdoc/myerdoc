@@ -54,7 +54,7 @@ export default function ConsultationQueue({ onStatsUpdate, clinicianId }: Consul
 
     async function fetchConsultations() {
         try {
-            let query = (supabase as any)
+            let query = supabase
                 .from('consultation_queue')
                 .select('*')
                 .order('created_at', { ascending: true });

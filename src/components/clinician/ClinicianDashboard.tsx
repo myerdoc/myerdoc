@@ -33,7 +33,7 @@ export default function ClinicianDashboard() {
         
         if (!user) return;
 
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('clinicians')
             .select('*')
             .eq('user_id', user.id)
@@ -51,7 +51,7 @@ export default function ClinicianDashboard() {
             if (!user) return;
 
             // Get clinician ID
-            const { data: clinicianData } = await (supabase as any)
+            const { data: clinicianData } = await supabase
                 .from('clinicians')
                 .select('id')
                 .eq('user_id', user.id)
@@ -60,7 +60,7 @@ export default function ClinicianDashboard() {
             if (!clinicianData) return;
 
             // Fetch dashboard stats
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('clinician_dashboard_stats')
                 .select('*')
                 .eq('clinician_id', clinicianData.id)
@@ -121,6 +121,12 @@ export default function ClinicianDashboard() {
                             Dr. {clinician?.first_name} {clinician?.last_name}
                             {clinician?.credentials && `, ${clinician.credentials}`}
                         </span>
+                        <Link
+                            href="/clinician/settings"
+                            className="text-sm font-semibold text-slate-600 hover:text-slate-900"
+                        >
+                            Settings
+                        </Link>
                         <button
                             onClick={handleLogout}
                             className="text-sm font-semibold text-slate-600 hover:text-slate-900 cursor-pointer"

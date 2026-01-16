@@ -44,7 +44,7 @@ export default function CompletedConsultations() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error('Not authenticated');
 
-            const { data: clinician } = await (supabase as any)
+            const { data: clinician } = await supabase
                 .from('clinicians')
                 .select('id')
                 .eq('user_id', user.id)
@@ -53,7 +53,7 @@ export default function CompletedConsultations() {
             if (!clinician) throw new Error('No clinician record found');
 
             // Fetch completed consultations
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('consultation_requests')
                 .select(`
                     id,

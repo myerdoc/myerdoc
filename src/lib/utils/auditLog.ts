@@ -20,7 +20,7 @@ export async function logAudit(
   const supabase = createClient();
   
   try {
-    const { data, error } = await (supabase as any).rpc('create_audit_log', {
+    const { data, error } = await supabase.rpc('create_audit_log', {
       p_action: action,
       p_resource_type: resourceType,
       p_resource_id: resourceId,
@@ -68,7 +68,7 @@ export async function getClinicianAuditLogs({
     }
     
     // Get clinician ID
-    const { data: clinicianData } = await (supabase as any)
+    const { data: clinicianData } = await supabase
       .from('clinicians')
       .select('id')
       .eq('user_id', user.id)
@@ -78,7 +78,7 @@ export async function getClinicianAuditLogs({
       throw new Error('Clinician not found');
     }
 
-    let query = (supabase as any)
+    let query = supabase
       .from('audit_logs')
       .select('*')
       .eq('clinician_id', clinicianData.id)
@@ -118,7 +118,7 @@ export async function getPatientAuditLogs(
   const supabase = createClient();
   
   try {
-    const { data, error } = await (supabase as any)
+    const { data, error } = await supabase
       .from('audit_logs')
       .select(`
         *,

@@ -15,7 +15,7 @@ export default function RequestPage() {
 
     const formData = new FormData(e.currentTarget);
 
-    const { error } = await (supabase as any).from("intake_requests").insert({
+    const { error } = await supabase.from("intake_requests").insert({
       type: "request",
       name: formData.get("name"),
       email: formData.get("email"),

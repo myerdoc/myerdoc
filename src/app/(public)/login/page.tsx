@@ -47,7 +47,7 @@ export default function LoginPage() {
 
   async function getUserRole(userId: string): Promise<string> {
     const supabase = createClient();
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)

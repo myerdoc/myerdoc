@@ -226,7 +226,7 @@ export default function ConsultationWorkspace({ consultationId }: ConsultationWo
         
         setLoadingAddendums(true);
         try {
-            const { data, error } = await (supabase as any)
+            const { data, error } = await supabase
                 .from('consultation_addendums')
                 .select(`
                     *,
