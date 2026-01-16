@@ -30,20 +30,21 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { session } } = await supabase.auth.getSession()
+  // Use getUser() instead of getSession() for server-side validation
+  const { data: { user }, error } = await supabase.auth.getUser()
+
+  const pathname = request.nextUrl.pathname
 
   // Protect clinician routes
-  if (request.nextUrl.pathname.startsWith('/dashboard') && 
-      request.nextUrl.pathname.includes('/clinician')) {
-    
-    if (!session) {
+  if (pathname.startsWith('/clinician')) {
+    if (!user || error) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
     const { data: roleData } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('user_id', session.user.id)
+      .eq('user_id', user.id)
       .single()
 
     if (roleData?.role !== 'clinician' && roleData?.role !== 'admin') {
@@ -51,11 +52,9 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Protect authenticated app routes
-  if (request.nextUrl.pathname.startsWith('/dashboard') ||
-      request.nextUrl.pathname.startsWith('/membership')) {
-    
-    if (!session) {
+  // Protect patient dashboard and membership routes
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/membership')) {
+    if (!user || error) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
   }
@@ -67,5 +66,6 @@ export const config = {
   matcher: [
     '/dashboard/:path*',
     '/membership/:path*',
+    '/clinician/:path*',
   ],
 }

@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
-  const router = useRouter();
+  const redirectingRef = useRef(false);
 
   const [checkingSession, setCheckingSession] = useState(true);
   const [email, setEmail] = useState("");
@@ -15,32 +14,30 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    
     checkExistingSession();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        if (session) {
-          const role = await getUserRole(session.user.id);
-          redirectByRole(role);
-        }
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
   }, []);
 
   async function checkExistingSession() {
     const supabase = createClient();
-    const { data } = await supabase.auth.getSession();
+    
+    try {
+      // Use getUser() instead of getSession() - it validates with the server
+      const { data: { user }, error } = await supabase.auth.getUser();
 
-    if (data.session) {
-      const role = await getUserRole(data.session.user.id);
-      redirectByRole(role);
-    } else {
+      if (error || !user) {
+        // No valid session, show login form
+        setCheckingSession(false);
+        return;
+      }
+
+      // Valid session exists, redirect
+      if (!redirectingRef.current) {
+        redirectingRef.current = true;
+        const role = await getUserRole(user.id);
+        redirectByRole(role);
+      }
+    } catch (err) {
+      console.error('Session check error:', err);
       setCheckingSession(false);
     }
   }
@@ -57,11 +54,11 @@ export default function LoginPage() {
   }
 
   function redirectByRole(role: string) {
-    if (role === "clinician" || role === "admin") {
-      router.replace("/clinician/dashboard");
-    } else {
-      router.replace("/dashboard");
-    }
+    const destination = (role === "clinician" || role === "admin") 
+      ? "/clinician/dashboard" 
+      : "/dashboard";
+    
+    window.location.href = destination;
   }
 
   async function handleLogin(e: React.FormEvent) {
@@ -81,7 +78,8 @@ export default function LoginPage() {
       return;
     }
 
-    if (data.session) {
+    if (data.session && !redirectingRef.current) {
+      redirectingRef.current = true;
       const role = await getUserRole(data.session.user.id);
       redirectByRole(role);
     }

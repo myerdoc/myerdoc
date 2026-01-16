@@ -1,6 +1,8 @@
 import { createServerSupabaseClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
+import { ArrowLeft } from 'lucide-react';
 import ChangePassword from '@/components/ChangePassword';
 
 export default async function ClinicianSettings() {
@@ -25,8 +27,15 @@ export default async function ClinicianSettings() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-3xl px-6">
         <div className="mb-8">
+          <Link 
+            href="/clinician/dashboard" 
+            className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Dashboard
+          </Link>
           <h1 className="text-3xl font-bold text-gray-900">Account Settings</h1>
           <p className="mt-2 text-sm text-gray-600">
             Manage your account security and preferences
