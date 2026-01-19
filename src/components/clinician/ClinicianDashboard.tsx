@@ -7,7 +7,6 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import ConsultationQueue from './ConsultationQueue';
 import CompletedConsultations from './CompletedConsultations';
-import StatsWidget from './StatsWidget';
 import { logAudit } from '@/lib/utils/auditLog';
 
 export default function ClinicianDashboard() {
@@ -15,18 +14,23 @@ export default function ClinicianDashboard() {
     const router = useRouter();
     
     const [stats, setStats] = useState({
-        pending: 0,
-        inProgress: 0,
-        completedToday: 0,
-        total: 0
+        completedThisWeek: 0,
+        completedThisMonth: 0,
+        completedThisYear: 0
     });
     const [clinician, setClinician] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
     useEffect(() => {
         fetchClinicianData();
-        fetchStats();
     }, []);
+
+    useEffect(() => {
+        if (clinician?.id) {
+            fetchStats();
+        }
+    }, [clinician?.id]);
 
     async function fetchClinicianData() {
         const { data: { user } } = await supabase.auth.getUser();
@@ -46,34 +50,63 @@ export default function ClinicianDashboard() {
 
     async function fetchStats() {
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) return;
-
-            // Get clinician ID
-            const { data: clinicianData } = await supabase
-                .from('clinicians')
-                .select('id')
-                .eq('user_id', user.id)
-                .single();
-
-            if (!clinicianData) return;
-
-            // Fetch dashboard stats
-            const { data, error } = await supabase
-                .from('clinician_dashboard_stats')
-                .select('*')
-                .eq('clinician_id', clinicianData.id)
-                .single();
-
-            if (data) {
-                setStats({
-                    pending: data.pending_consultations || 0,
-                    inProgress: data.in_progress_consultations || 0,
-                    completedToday: data.completed_today || 0,
-                    total: data.total_consultations || 0
-                });
+            if (!clinician?.id) {
+                return;
             }
+
+            // Calculate date ranges
+            const now = new Date();
+            
+            // Start of week (Monday) - current week from Monday to Sunday
+            const startOfWeek = new Date(now);
+            const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, 2 = Tuesday, etc.
+            
+            // Calculate days to subtract to get to Monday of THIS week
+            // If Sunday (0), subtract 6 days to get to Monday of this week
+            // If Monday (1), subtract 0 days (already Monday)
+            // If Tuesday (2), subtract 1 day, etc.
+            const daysToSubtract = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            
+            startOfWeek.setDate(now.getDate() - daysToSubtract);
+            startOfWeek.setHours(0, 0, 0, 0);
+            
+            // Start of month
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            startOfMonth.setHours(0, 0, 0, 0);
+            
+            // Start of year
+            const startOfYear = new Date(now.getFullYear(), 0, 1);
+            startOfYear.setHours(0, 0, 0, 0);
+
+            // Fetch completed this week
+            const { count: weekCount } = await supabase
+                .from('consultation_requests')
+                .select('*', { count: 'exact', head: true })
+                .eq('assigned_physician_id', clinician.id)
+                .eq('status', 'completed')
+                .gte('completed_at', startOfWeek.toISOString());
+
+            // Fetch completed this month
+            const { count: monthCount } = await supabase
+                .from('consultation_requests')
+                .select('*', { count: 'exact', head: true })
+                .eq('assigned_physician_id', clinician.id)
+                .eq('status', 'completed')
+                .gte('completed_at', startOfMonth.toISOString());
+
+            // Fetch completed this year
+            const { count: yearCount } = await supabase
+                .from('consultation_requests')
+                .select('*', { count: 'exact', head: true })
+                .eq('assigned_physician_id', clinician.id)
+                .eq('status', 'completed')
+                .gte('completed_at', startOfYear.toISOString());
+
+            setStats({
+                completedThisWeek: weekCount || 0,
+                completedThisMonth: monthCount || 0,
+                completedThisYear: yearCount || 0
+            });
         } catch (error) {
             console.error('Error fetching stats:', error);
         } finally {
@@ -83,6 +116,7 @@ export default function ClinicianDashboard() {
 
     async function handleLogout() {
         await supabase.auth.signOut();
+        setMobileMenuOpen(false);
         router.replace('/login');
     }
 
@@ -111,12 +145,12 @@ export default function ClinicianDashboard() {
                                 className="h-9 w-auto"
                             />
                         </Link>
-                        <span className="text-slate-300">|</span>
-                        <span className="text-sm font-medium text-slate-600">Clinician Portal</span>
+                        <span className="hidden sm:inline text-slate-300">|</span>
+                        <span className="hidden sm:inline text-sm font-medium text-slate-600">Clinician Portal</span>
                     </div>
 
-                    {/* Right - User info & logout */}
-                    <div className="flex items-center gap-4">
+                    {/* Right - Desktop */}
+                    <div className="hidden md:flex items-center gap-4">
                         <span className="text-sm text-slate-600">
                             Dr. {clinician?.first_name} {clinician?.last_name}
                             {clinician?.credentials && `, ${clinician.credentials}`}
@@ -140,44 +174,112 @@ export default function ClinicianDashboard() {
                             Log out
                         </button>
                     </div>
+
+                    {/* Mobile Hamburger */}
+                    <button
+                        onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                        className="md:hidden flex items-center justify-center w-10 h-10 rounded-md hover:bg-slate-100 transition-colors"
+                        aria-label="Toggle menu"
+                    >
+                        <svg
+                            className="w-6 h-6 text-slate-700"
+                            fill="none"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            {mobileMenuOpen ? (
+                                <path d="M6 18L18 6M6 6l12 12" />
+                            ) : (
+                                <path d="M4 6h16M4 12h16M4 18h16" />
+                            )}
+                        </svg>
+                    </button>
                 </div>
+
+                {/* Mobile Menu */}
+                {mobileMenuOpen && (
+                    <div className="md:hidden border-t bg-white shadow-lg">
+                        <div className="px-6 py-4 flex flex-col space-y-1">
+                            {/* Clinician Info */}
+                            <div className="pb-3 mb-3 border-b border-slate-200">
+                                <span className="text-sm font-medium text-slate-900">
+                                    Dr. {clinician?.first_name} {clinician?.last_name}
+                                    {clinician?.credentials && `, ${clinician.credentials}`}
+                                </span>
+                            </div>
+
+                            {/* Menu Items */}
+                            <Link
+                                href="/clinician/dashboard"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="block py-3 text-base font-medium text-slate-800 hover:bg-slate-50 rounded-md px-3 -mx-3"
+                            >
+                                Dashboard
+                            </Link>
+                            <Link
+                                href="/clinician/schedule"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="block py-3 text-base font-medium text-slate-800 hover:bg-slate-50 rounded-md px-3 -mx-3"
+                            >
+                                Schedule
+                            </Link>
+                            <Link
+                                href="/clinician/settings"
+                                onClick={() => setMobileMenuOpen(false)}
+                                className="block py-3 text-base font-medium text-slate-800 hover:bg-slate-50 rounded-md px-3 -mx-3"
+                            >
+                                Settings
+                            </Link>
+                            <button
+                                onClick={handleLogout}
+                                className="block w-full text-left py-3 text-base font-medium text-slate-600 hover:bg-slate-50 rounded-md px-3 -mx-3"
+                            >
+                                Log out
+                            </button>
+                        </div>
+                    </div>
+                )}
             </header>
 
             {/* Main Content */}
             <main className="mx-auto max-w-7xl px-6 py-8">
-                {/* Stats Grid */}
-                <div className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-4">
-                    <StatsWidget
-                        title="Pending"
-                        value={stats.pending}
-                        color="red"
-                        icon="⏰"
-                    />
-                    <StatsWidget
-                        title="In Progress"
-                        value={stats.inProgress}
-                        color="amber"
-                        icon="🔄"
-                    />
-                    <StatsWidget
-                        title="Completed Today"
-                        value={stats.completedToday}
-                        color="green"
-                        icon="✓"
-                    />
-                    <StatsWidget
-                        title="Total Consultations"
-                        value={stats.total}
-                        color="blue"
-                        icon="📊"
-                    />
+                {/* Top Grid - Consultation Queue (60%) + Completed Stats (40%) */}
+                <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-3">
+                    {/* Consultation Queue - 60% width (2 columns) */}
+                    <div className="lg:col-span-2">
+                        <ConsultationQueue 
+                            onStatsUpdate={fetchStats}
+                            clinicianId={clinician?.id}
+                        />
+                    </div>
+                    
+                    {/* Completed Consultations Stats - 40% width (1 column) */}
+                    <div className="lg:col-span-1">
+                        <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+                            <div className="flex items-center justify-between mb-6">
+                                <h3 className="text-sm font-semibold text-slate-600">Completed Consultations</h3>
+                                <span className="text-2xl">✓</span>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-600">This Week</span>
+                                    <span className="text-2xl font-bold text-green-600">{stats.completedThisWeek}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-600">This Month</span>
+                                    <span className="text-2xl font-bold text-blue-600">{stats.completedThisMonth}</span>
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm font-medium text-slate-600">This Year</span>
+                                    <span className="text-2xl font-bold text-purple-600">{stats.completedThisYear}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-                {/* Consultation Queue */}
-                <ConsultationQueue 
-                    onStatsUpdate={fetchStats}
-                    clinicianId={clinician?.id}
-                />
 
                 {/* Completed Consultations */}
                 <div className="mt-8">

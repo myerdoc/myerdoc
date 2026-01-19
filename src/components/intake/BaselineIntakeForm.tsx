@@ -45,40 +45,6 @@ export default function BaselineIntakeForm({ membershipId }: Props) {
     return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   }
 
-  async function getSelfPersonId(): Promise<string | null> {
-    // Prefer relationship='self' if you have it (you do)
-    const { data, error } = await supabase
-      .from('people')
-      .select('id')
-      .eq('membership_id', membershipId)
-      .eq('relationship', 'self')
-      .maybeSingle();
-
-    if (error) {
-      console.error('SELF PERSON LOOKUP ERROR:', error);
-      return null;
-    }
-
-    // Fallback: just take the first row for membership
-    if (!data) {
-      const { data: fallback, error: fallbackError } = await supabase
-        .from('people')
-        .select('id')
-        .eq('membership_id', membershipId)
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-
-      if (fallbackError) {
-        console.error('FALLBACK PERSON LOOKUP ERROR:', fallbackError);
-        return null;
-      }
-      return fallback?.id ?? null;
-    }
-
-    return data.id;
-  }
-
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (submitting) return;
@@ -103,65 +69,102 @@ export default function BaselineIntakeForm({ membershipId }: Props) {
 
     setSubmitting(true);
 
-    // 1) Upsert baseline self person (your RPC)
-    const { error: rpcError } = await supabase.rpc('upsert_self_person', {
-      p_membership_id: membershipId,
-      p_first_name: firstName,
-      p_last_name: lastName,
-      p_date_of_birth: formattedDob,
-    });
+    try {
+      // 1) Check if self person already exists
+      const { data: existingPerson, error: checkError } = await supabase
+        .from('people')
+        .select('id')
+        .eq('membership_id', membershipId)
+        .eq('relationship', 'self')
+        .maybeSingle();
 
-    if (rpcError) {
-      console.error('INTAKE RPC ERROR:', rpcError);
-      setError('Failed to save baseline information.');
-      setSubmitting(false);
-      return;
-    }
+      if (checkError) {
+        console.error('CHECK ERROR:', checkError);
+        setError('Failed to check existing profile.');
+        setSubmitting(false);
+        return;
+      }
 
-    // 2) Find self person id
-    const personId = await getSelfPersonId();
-    if (!personId) {
-      setError('Saved baseline, but could not find your profile record to update.');
-      setSubmitting(false);
-      return;
-    }
+      let personId: string;
 
-    // 3) Update contact/shipping on that person row
-    const { error: contactUpdateError } = await supabase
-      .from('people')
-      .update({
-        middle_name: middleName || null,
-        preferred_name: preferredName || null,
-        phone: phone ? phone : null,
-        address_line1: address1,
-        address_line2: address2 || null,
-        city,
-        state,
-        postal_code: postalCode,
-      })
-      .eq('id', personId);
+      if (existingPerson) {
+        // Update existing person
+        const { error: updateError } = await supabase
+          .from('people')
+          .update({
+            first_name: firstName,
+            last_name: lastName,
+            middle_name: middleName || null,
+            preferred_name: preferredName || null,
+            date_of_birth: formattedDob,
+            phone: phone || null,
+            address_line1: address1,
+            address_line2: address2 || null,
+            city,
+            state,
+            postal_code: postalCode,
+          })
+          .eq('id', existingPerson.id);
 
-    if (contactUpdateError) {
-      console.error('CONTACT UPDATE ERROR:', contactUpdateError);
-      setError('Saved, but failed to save contact/shipping info.');
-      setSubmitting(false);
-      return;
-    }
+        if (updateError) {
+          console.error('UPDATE ERROR:', updateError);
+          setError('Failed to update profile.');
+          setSubmitting(false);
+          return;
+        }
 
-    // 4) Advance onboarding step
+        personId = existingPerson.id;
+      } else {
+        // Insert new person
+        const { data: newPerson, error: insertError } = await supabase
+          .from('people')
+          .insert({
+            membership_id: membershipId,
+            relationship: 'self',
+            first_name: firstName,
+            last_name: lastName,
+            middle_name: middleName || null,
+            preferred_name: preferredName || null,
+            date_of_birth: formattedDob,
+            phone: phone || null,
+            address_line1: address1,
+            address_line2: address2 || null,
+            city,
+            state,
+            postal_code: postalCode,
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error('INSERT ERROR:', insertError);
+          setError('Failed to create profile.');
+          setSubmitting(false);
+          return;
+        }
+
+        personId = newPerson.id;
+      }
+
+      // 2) Advance onboarding step
       const { error: stepError } = await supabase
-      .from('memberships')
-      .update({ onboarding_step: 'baseline_complete' })
-      .eq('id', membershipId);
+        .from('memberships')
+        .update({ onboarding_step: 'baseline_complete' })
+        .eq('id', membershipId);
 
-    if (stepError) {
-      console.error('ONBOARDING STEP UPDATE ERROR:', stepError);
-      setError('Saved, but failed to update onboarding step.');
+      if (stepError) {
+        console.error('ONBOARDING STEP UPDATE ERROR:', stepError);
+        setError('Saved, but failed to update onboarding step.');
+        setSubmitting(false);
+        return;
+      }
+
+      router.replace(`/membership/intake/emergency-contact?membershipId=${membershipId}`);
+    } catch (err) {
+      console.error('UNEXPECTED ERROR:', err);
+      setError('An unexpected error occurred.');
       setSubmitting(false);
-      return;
     }
-
-    router.replace(`/membership/intake/emergency-contact?membershipId=${membershipId}`);
   }
 
   return (
